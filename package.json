@@ -1,0 +1,9 @@
+{
+  "name": "muhs-papers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local-first library of MUHS MBBS previous year question papers.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="name">
+  <title id="name">MUHS Papers — orbit and pages</title>
+  <rect width="64" height="64" rx="15" fill="#103c4b"/>
+  <!-- The university emblem's three orbits and uplifted figure. -->
+  <g fill="none" stroke="#f2bf54" stroke-width="2.2">
+    <ellipse cx="32" cy="25" rx="8" ry="19"/>
+    <ellipse cx="32" cy="25" rx="8" ry="19" transform="rotate(60 32 25)"/>
+    <ellipse cx="32" cy="25" rx="8" ry="19" transform="rotate(-60 32 25)"/>
+  </g>
+  <circle cx="32" cy="15" r="3.1" fill="#fff"/>
+  <path d="M16 17q8 0 16 5 8-5 16-5-12 5-16 19-4-14-16-19Z" fill="#fff"/>
+  <!-- Fanned sheets cradle the emblem; the centre crease joins both motifs. -->
+  <path d="m9 40 17 3 6 4 6-4 17-3v9l-17 2-6 4-6-4-17-2Z" fill="#62c8df" stroke="#103c4b" stroke-width="2"/>
+  <path d="m12 37 15 3 5 4 5-4 15-3v7l-15 3-5 4-5-4-15-3Z" fill="#effbfe" stroke="#103c4b" stroke-width="2" stroke-linejoin="round"/>
+</svg>
