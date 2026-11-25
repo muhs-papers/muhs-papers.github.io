@@ -4,6 +4,13 @@
   "private": true,
   "description": "A local-first library of MUHS MBBS previous year question papers.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:web": "node scripts/prepare-www.js",
+    "cap:sync": "node scripts/prepare-www.js && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
   }
 }
