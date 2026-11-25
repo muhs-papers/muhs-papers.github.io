@@ -1134,7 +1134,7 @@ svg {
 }
 
 .subject-head-main {
-  flex: 1 1 340px;
+  flex: 1 1 220px;
   min-width: 0;
 }
 
@@ -1217,13 +1217,14 @@ svg {
 .select select {
   appearance: none;
   -webkit-appearance: none;
+  -moz-appearance: none;
   height: 36px;
   padding: 0 32px 0 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
-  font: 600 12.5px/1 var(--sans);
+  font: 600 12.5px/1.4 var(--sans);
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -1630,6 +1631,13 @@ svg {
 .modal-close {
   flex: none;
   margin: 0 -6px 0 0;
+}
+
+#add-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* form */
@@ -2372,7 +2380,7 @@ select.input {
   .nav {
     order: 5;
     width: 100%;
-    padding: 8px 0 0;
+    padding: 8px 0 10px;
     border-top: 1px solid var(--line);
     overflow-x: auto;
     scrollbar-width: none;
@@ -2474,7 +2482,8 @@ select.input {
   }
 
   .topbar-add {
-    width: 40px;
+    width: 38px;
+    height: 38px;
     padding: 0;
   }
 
@@ -2509,6 +2518,12 @@ select.input {
     width: 100%;
   }
 
+  .callout-actions .btn,
+  .subject-actions .btn,
+  .data-actions .btn {
+    flex: 1 1 auto;
+  }
+
   .subject-grid {
     grid-template-columns: 1fr;
     gap: 11px;
@@ -2523,16 +2538,31 @@ select.input {
   }
 
   .paper-row {
-    padding: 10px;
-    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px;
+    gap: 10px 8px;
+  }
+
+  .paper-main {
+    flex: 1 1 100%;
+    gap: 10px;
   }
 
   .paper-actions {
     opacity: 1;
+    gap: 4px;
+    margin-left: auto;
   }
 
   .session {
-    display: none;
+    display: inline-flex;
+    margin-right: auto;
+  }
+
+  .icon-action {
+    width: 36px;
+    height: 36px;
   }
 
   .paper-title {
@@ -2543,6 +2573,7 @@ select.input {
   }
 
   .preview-head {
+    align-items: center;
     padding: 13px 13px 12px 16px;
   }
 
@@ -2554,9 +2585,34 @@ select.input {
     display: none;
   }
 
-  .preview-head .actions .btn {
+  .preview-head .actions .btn,
+  .preview-head .actions .icon-action,
+  .preview-head .actions .icon-btn {
     width: 36px;
+    height: 36px;
     padding: 0;
+  }
+
+  .preview-foot {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .preview-foot > span {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .preview-foot .foot-actions {
+    width: 100%;
+  }
+
+  .preview-foot .foot-actions .btn {
+    flex: 1;
   }
 
   .modal-backdrop {
@@ -2587,9 +2643,50 @@ select.input {
     grid-template-columns: 1fr;
   }
 
-  .filters .results-count {
-    margin-left: 0;
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 8px;
+    margin: 22px 0 20px;
+  }
+
+  .filters-label {
+    grid-column: 1;
+    grid-row: 1;
+    margin-right: 0;
+  }
+
+  .filters .select {
     width: 100%;
+    min-width: 0;
+  }
+
+  .filters .select select {
+    width: 100%;
+    min-width: 0;
+    padding-right: 28px;
+    text-overflow: ellipsis;
+  }
+
+  .filters > div.select:nth-of-type(3) {
+    grid-column: 1 / -1;
+  }
+
+  .filters .clear-filters {
+    justify-self: start;
+  }
+
+  .filters .results-count {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    margin-left: 0;
+    width: auto;
+  }
+
+  .toast-root {
+    bottom: max(16px, env(safe-area-inset-bottom));
   }
 
   .empty {
@@ -2633,8 +2730,8 @@ select.input {
   }
 
   .icon-action {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
   }
 }
 
@@ -2731,8 +2828,10 @@ button, input, select, textarea, option, code, kbd { font-family: var(--sans); }
   border-color: #71c6da;
 }
 @media (max-width: 680px) {
-  .paper-intro { margin: 16px 0 22px; padding: 22px; }
+  .paper-intro { margin: 16px 0 22px; padding: 20px; }
+  .paper-intro h1 { font-size: clamp(24px, 7.2vw, 32px); }
   .intro-art { display: none; }
   .paper-intro small { margin-top: 10px; }
   .subject-card { padding: 14px 16px; }
+  .subject-next { bottom: 14px; right: 16px; }
 }

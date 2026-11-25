@@ -514,20 +514,39 @@
       .join("");
   }
 
+  function driveFileId(url) {
+    if (!url) return "";
+    const m =
+      String(url).match(/drive\.google\.com\/file\/d\/([^/?#]+)/i) ||
+      String(url).match(/drive\.google\.com\/(?:open|uc)\b[^#]*[?&]id=([^&#]+)/i);
+    return m ? m[1] : "";
+  }
+
+  function downloadUrlForPaper(paper) {
+    if (!paper || !paper.url) return "";
+    const driveId = driveFileId(paper.url);
+    if (driveId) {
+      return "https://drive.google.com/uc?export=download&id=" + encodeURIComponent(driveId);
+    }
+    return paper.url;
+  }
+
   function paperRow(paper, context) {
     const title = defaultTitle(paper);
     const downloadAction =
-      paper.kind === "file"
-        ? '<button class="icon-action" type="button" data-action="download" data-id="' +
+      '<button class="icon-action" type="button" data-action="download" data-id="' +
+      esc(paper.id) +
+      '" aria-label="Download PDF" title="Download PDF">' +
+      icon("download") +
+      "</button>";
+    const linkAction =
+      paper.kind === "link"
+        ? '<button class="icon-action" type="button" data-action="open-link" data-id="' +
           esc(paper.id) +
-          '" aria-label="Download paper" title="Download">' +
-          icon("download") +
-          "</button>"
-        : '<button class="icon-action" type="button" data-action="open-link" data-id="' +
-          esc(paper.id) +
-          '" aria-label="Open link" title="Open link">' +
+          '" aria-label="Open link in new tab" title="Open link">' +
           icon("external") +
-          "</button>";
+          "</button>"
+        : "";
 
     return (
       '<article class="paper-row' +
@@ -558,6 +577,7 @@
       '<div class="paper-actions">' +
       bookmarkButton(paper) +
       downloadAction +
+      linkAction +
       '<button class="icon-action danger" type="button" data-action="delete" data-id="' +
       esc(paper.id) +
       '" aria-label="Delete paper" title="Delete">' +
@@ -1640,13 +1660,11 @@
         [1,2].map(n => '<option value="' + n + '"' + (paper.paperNumber === n ? " selected" : "") + '>Paper ' + n + '</option>').join("") +
         '</select>' +
         '</span><div class="foot-actions">' +
-        (paper.kind === "file"
-          ? '<button class="btn btn-ghost btn-sm" type="button" data-action="download" data-id="' +
-            esc(paper.id) +
-            '">' +
-            icon("download") +
-            " Download</button>"
-          : "") +
+        '<button class="btn btn-ghost btn-sm" type="button" data-action="download" data-id="' +
+        esc(paper.id) +
+        '">' +
+        icon("download") +
+        " Download</button>" +
         '<a class="btn btn-primary btn-sm" href="' +
         esc(src) +
         '" target="_blank" rel="noopener noreferrer">' +
@@ -1875,25 +1893,42 @@
   async function downloadPaper(id) {
     const paper = getPaper(id);
     if (!paper) return;
+    const subject = SUBJECT_BY_ID.get(paper.subjectId);
+    const fallbackName =
+      slug(subject ? subject.name : "paper") +
+      "-" +
+      paper.session.toLowerCase() +
+      "-" +
+      paper.year +
+      (paper.paperNumber ? "-paper-" + paper.paperNumber : "");
+
     if (paper.kind === "link") {
-      openLinkPaper(id);
+      const dlUrl = downloadUrlForPaper(paper);
+      if (!dlUrl) {
+        toast("This paper has no link attached.", { error: true });
+        return;
+      }
+      const link = document.createElement("a");
+      link.href = dlUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.download = fallbackName + ".pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast("Starting download…");
       return;
     }
+
     try {
       const record = await dbGet("files", id);
       if (!record || !record.blob) throw new Error("missing");
-      const subject = SUBJECT_BY_ID.get(paper.subjectId);
       const url = URL.createObjectURL(record.blob);
       const link = document.createElement("a");
       link.href = url;
       link.download =
         paper.fileName ||
-        slug(subject ? subject.name : "paper") +
-          "-" +
-          paper.session.toLowerCase() +
-          "-" +
-          paper.year +
-          (paper.fileType === "application/pdf" ? ".pdf" : "");
+        fallbackName + (paper.fileType === "application/pdf" ? ".pdf" : "");
       document.body.appendChild(link);
       link.click();
       link.remove();
