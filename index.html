@@ -11,13 +11,7 @@
     (function () {
       try {
         var stored = localStorage.getItem("muhs.theme");
-        var theme =
-          stored === "dark" || stored === "light"
-            ? stored
-            : window.matchMedia &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
+        var theme = stored === "dark" ? "dark" : "light";
         document.documentElement.dataset.theme = theme;
       } catch (err) {}
     })();

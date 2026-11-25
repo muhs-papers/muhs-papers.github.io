@@ -321,21 +321,13 @@
   }
 
   function initTheme() {
-    const fromDom = document.documentElement.dataset.theme;
     const stored = readString(THEME_KEY);
-    const prefersDark =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
     state.theme =
       stored === "dark" || stored === "light"
         ? stored
-        : fromDom === "dark"
+        : document.documentElement.dataset.theme === "dark"
           ? "dark"
-          : fromDom === "light"
-            ? "light"
-            : prefersDark
-              ? "dark"
-              : "light";
+          : "light";
     applyTheme();
   }
 
