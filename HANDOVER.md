@@ -32,6 +32,27 @@ the Android wrapper resolves hosted paths against Pages without bundling PDFs.
 This is not yet deployed. First-page OCR exists for all 170 files (1,728 pages
 total); review all paper boundaries before promoting multi-paper scans.
 
+**Full local catalogue (supersedes the pilot counts):** 281 directly hosted PDFs
+across 14 subjects, 795,864,352 bytes. All 54 previous Drive entries have
+same-ID hosted replacements. The 170 additional source scans produced 227
+entries. All 1,728 pages of those scans have staged OCR evidence. Split ranges
+and variant decisions are recorded in `scripts/review-decisions.tsv`; 26
+multi-year collections and 16 items without a confirmed session remain
+separately browsable rather than appearing under an assumed exam date.
+To regenerate, stage the new and legacy inventories separately using
+`scripts/stage-papers.js` and `scripts/stage-legacy.js`, then run
+`node scripts/materialize-papers.js <new-staging-dir> <legacy-staging-dir>`.
+The generated catalogue has 281 distinct IDs and paths; all file sizes checked.
+The full-catalogue Edge upgrade/preview/download/backup test passed, plus
+offline shell and previously fetched PDF retrieval, and Anatomy browsing with
+IndexedDB disabled. `npm run build:web` stages the metadata without the PDFs.
+
+**Release blocker:** A non-interactive push dry run for `origin/main` failed
+because Git could not obtain credentials. Nothing published, no new APK.
+After authenticating Git, verify `origin/main` is still a fast-forward from
+the migration branch base before pushing; verify the Pages PDF response,
+then the Android Actions release and on-device preview/download.
+
 **Handover Date:** 2026-11-25  
 **Workspace Root:** `C:\MUHS APP`  
 **Live GitHub Pages URL:** <https://kodestien234.github.io/muhs-papers/>  

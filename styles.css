@@ -1463,6 +1463,11 @@ svg {
   color: #1c4f8a;
 }
 
+.session-archive {
+  background: #e9eff1;
+  color: #3f5560;
+}
+
 [data-theme="dark"] .session-summer {
   background: #2c2514;
   color: #eec271;
@@ -1471,6 +1476,11 @@ svg {
 [data-theme="dark"] .session-winter {
   background: #16263a;
   color: #8ebdf0;
+}
+
+[data-theme="dark"] .session-archive {
+  background: #1d2a30;
+  color: #9cb3be;
 }
 
 .paper-actions {

@@ -790,10 +790,3 @@ window.MUHS_DATA.hostedPapers = [
   return {...original, kind:"site", fileType:"application/pdf", fileSize,
     fileName, url:`papers/pathology/${fileName}`};
 });
-window.MUHS_DATA.hostedPapers.push({
-  id: "gdrive_17Gj_prKz90yYqZgcJ0Rd8ZRkrRFNiOKx",
-  subjectId: "anatomy", year: 2025, session: "Summer", paperNumber: 1,
-  title: "Anatomy — Paper 1 (Summer 2025, CBME)", kind: "site",
-  fileType: "application/pdf", fileSize: 2322963, fileName: "summer-2025-paper-1-cbme.pdf",
-  url: "papers/anatomy/summer-2025-paper-1-cbme.pdf", addedAt: "2026-11-25T00:00:00Z"
-});

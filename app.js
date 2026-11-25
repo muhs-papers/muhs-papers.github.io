@@ -139,6 +139,16 @@
       ? "Paper " + paper.paperNumber : "Number not set";
   }
 
+  function catalogueGroup(paper) {
+    if (paper.kind !== "site") return "";
+    return ["Multi-year collection", "Exam session unverified"].includes(paper.catalogueGroup)
+      ? paper.catalogueGroup : "";
+  }
+
+  function examLabel(paper) {
+    return catalogueGroup(paper) || (paper.session + " " + paper.year);
+  }
+
   function defaultTitle(paper) {
     if (paper.title && paper.title.trim()) return paper.title.trim();
     const s = SUBJECT_BY_ID.get(paper.subjectId);
@@ -571,9 +581,9 @@
       "</span>" +
       "</button>" +
       '<span class="session session-' +
-      paper.session.toLowerCase() +
+      (paper.session || "archive").toLowerCase() +
       '">' +
-      paper.session +
+      (paper.session || (catalogueGroup(paper) === "Multi-year collection" ? "Collection" : "Undated")) +
       "</span>" +
       '<div class="paper-actions">' +
       bookmarkButton(paper) +
@@ -593,8 +603,9 @@
     if (!papers.length) return "";
     const groups = new Map();
     papers.slice().sort(byRecency).forEach((p) => {
-      if (!groups.has(p.year)) groups.set(p.year, []);
-      groups.get(p.year).push(p);
+      const key = p.year || catalogueGroup(p);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
     });
     const sections = [];
     groups.forEach((list, year) => {
@@ -807,7 +818,7 @@
     const phase = subjectPhase(subject);
     const all = papersForSubject(subject.id);
     const latest = latestPaper(all);
-    const yearsPresent = Array.from(new Set(all.map((p) => p.year))).sort(
+    const yearsPresent = Array.from(new Set(all.map((p) => p.year).filter(Boolean))).sort(
       (a, b) => b - a
     );
     if (
@@ -876,7 +887,7 @@
       icon("file") +
       plural(all.length, "paper", "papers") +
       "</span>" +
-      (latest
+      (latest && latest.year
         ? '<span class="meta-chip">' +
           icon("calendar") +
           "Latest " +
@@ -1621,7 +1632,7 @@
             esc(src) +
             '" target="_blank" rel="noopener noreferrer">Open in a new tab</a> if nothing loads.</span></div>'
           : "";
-      const headMeta = [phase ? phase.label : "", subject ? subject.name : "", partLabel(paper), paper.session + " " + paper.year]
+      const headMeta = [phase ? phase.label : "", subject ? subject.name : "", partLabel(paper), examLabel(paper)]
         .filter(Boolean)
         .map(esc)
         .join(" · ");
@@ -1898,7 +1909,7 @@
     const fallbackName =
       slug(subject ? subject.name : "paper") +
       "-" +
-      paper.session.toLowerCase() +
+      (paper.session || "archive").toLowerCase() +
       "-" +
       paper.year +
       (paper.paperNumber ? "-paper-" + paper.paperNumber : "");
@@ -1913,7 +1924,7 @@
       link.href = dlUrl;
       if (new URL(dlUrl).origin !== location.origin) link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.download = fallbackName + ".pdf";
+      link.download = paper.kind === "site" ? paper.fileName : fallbackName + ".pdf";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -2046,13 +2057,14 @@
         }
         const subject = SUBJECT_BY_ID.get(item.subjectId);
         const session = item.session;
-        const year = Math.trunc(Number(item.year));
+        const group = catalogueGroup(item);
+        const year = group ? null : Math.trunc(Number(item.year));
         if (
           !subject ||
-          (session !== "Summer" && session !== "Winter") ||
+          (!group && ((session !== "Summer" && session !== "Winter") ||
           !Number.isFinite(year) ||
           year < 1990 ||
-          year > CURRENT_YEAR + 1
+          year > CURRENT_YEAR + 1)) || (group && (item.year != null || item.session != null || !siteUrl(item)))
         ) {
           skipped += 1;
           continue;
@@ -2106,6 +2118,7 @@
         } else if (item.kind === "site" && siteUrl(item)) {
           Object.assign(meta, {kind: "site", url: item.url, fileType: "application/pdf",
             fileName: item.url.split("/").pop(), fileSize: Number(item.fileSize) || 0});
+          if (group) meta.catalogueGroup = group;
         } else if (typeof item.url === "string" && safeUrl(item.url)) {
           meta.kind = "link";
           meta.url = safeUrl(item.url);
@@ -2321,7 +2334,7 @@
               phase ? phase.label : "",
               subject ? subject.name : "",
               partLabel(paper),
-              paper.session + " " + paper.year,
+              examLabel(paper),
             ]
               .filter(Boolean)
               .join(" · ");
@@ -2397,8 +2410,8 @@
       typeof paper === "object" &&
       typeof paper.id === "string" &&
       SUBJECT_BY_ID.has(paper.subjectId) &&
-      (paper.session === "Summer" || paper.session === "Winter") &&
-      Number.isFinite(Number(paper.year))
+      ((catalogueGroup(paper) && paper.session == null && paper.year == null && siteUrl(paper)) ||
+        ((paper.session === "Summer" || paper.session === "Winter") && Number.isFinite(Number(paper.year))))
     );
   }
 
@@ -2444,7 +2457,7 @@
       const papers = await dbGetAll("papers");
       state.papers = papers.filter(validPaper).map((paper) => ({
         ...paper,
-        year: Number(paper.year),
+        year: paper.year == null ? null : Number(paper.year),
       }));
       await seedDefaultPapers();
     } catch (err) {
@@ -2454,7 +2467,7 @@
         const catalogue = new Map([...DATA.defaultPapers, ...(DATA.hostedPapers || [])].map(p => [p.id, p]));
         state.papers = [...catalogue.values()].filter(validPaper).map((paper) => ({
           ...paper,
-          year: Number(paper.year),
+          year: paper.year == null ? null : Number(paper.year),
         }));
       }
     }
