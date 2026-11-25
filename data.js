@@ -779,3 +779,21 @@ window.MUHS_DATA = {
     },
   ],
 };
+
+// Reviewed static PDFs. Reuse old IDs when promoting a Drive entry.
+window.MUHS_DATA.hostedPapers = [
+  ["gdrive_1YY5LWhM-rQ6a-EiP2WlZu61VtGE9ajKF", 1, 823885],
+  ["gdrive_1bR_d80Jm_RtveWcmuEep-n9wLK8eq9Wz", 2, 894909],
+].map(([id, paperNumber, fileSize]) => {
+  const original = window.MUHS_DATA.defaultPapers.find(p => p.id === id);
+  const fileName = `winter-2023-paper-${paperNumber}.pdf`;
+  return {...original, kind:"site", fileType:"application/pdf", fileSize,
+    fileName, url:`papers/pathology/${fileName}`};
+});
+window.MUHS_DATA.hostedPapers.push({
+  id: "gdrive_17Gj_prKz90yYqZgcJ0Rd8ZRkrRFNiOKx",
+  subjectId: "anatomy", year: 2025, session: "Summer", paperNumber: 1,
+  title: "Anatomy — Paper 1 (Summer 2025, CBME)", kind: "site",
+  fileType: "application/pdf", fileSize: 2322963, fileName: "summer-2025-paper-1-cbme.pdf",
+  url: "papers/anatomy/summer-2025-paper-1-cbme.pdf", addedAt: "2026-11-25T00:00:00Z"
+});

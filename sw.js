@@ -1,4 +1,4 @@
-const CACHE_NAME = "muhs-papers-v3";
+const CACHE_NAME = "muhs-papers-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -39,9 +39,9 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(req)
       .then((res) => {
-        if (res && res.ok) {
+        if (res && res.ok && res.status !== 206) {
           const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {}));
         }
         return res;
       })

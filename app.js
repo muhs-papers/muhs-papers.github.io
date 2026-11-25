@@ -148,6 +148,7 @@
   }
 
   function fileExt(paper) {
+    if (paper.kind === "site") return "PDF";
     if (paper.kind === "link") return "LINK";
     const type = paper.fileType || "";
     if (type.indexOf("pdf") !== -1) return "PDF";
@@ -495,7 +496,7 @@
     const bits = [];
     bits.push(partLabel(paper));
     if (context !== "subject" && s) bits.push(esc(s.name));
-    if (paper.kind === "file") {
+    if (paper.kind === "file" || paper.kind === "site") {
       bits.push(fileExt(paper) + " · " + formatSize(paper.fileSize));
     } else {
       bits.push("External link");
@@ -523,6 +524,14 @@
     return paper.url;
   }
 
+  // Restrict hosted paths to catalogue-owned assets, relative to the Pages subpath.
+  function siteUrl(paper) {
+    if (!/^papers\/[a-z]+\/[a-zA-Z0-9_-]+\.pdf$/.test(paper.url)) return "";
+    const base = window.Capacitor?.isNativePlatform?.()
+      ? "https://kodestien234.github.io/muhs-papers/" : document.baseURI;
+    return new URL(paper.url, base).href;
+  }
+
   function paperRow(paper, context) {
     const title = defaultTitle(paper);
     const downloadAction =
@@ -532,7 +541,7 @@
       icon("download") +
       "</button>";
     const linkAction =
-      paper.kind === "link"
+      paper.kind !== "file"
         ? '<button class="icon-action" type="button" data-action="open-link" data-id="' +
           esc(paper.id) +
           '" aria-label="Open link in new tab" title="Open link">' +
@@ -1587,7 +1596,7 @@
     const subject = SUBJECT_BY_ID.get(paper.subjectId);
     const phase = subject ? subjectPhase(subject) : null;
     const title = defaultTitle(paper);
-    let src = paper.url || "";
+    let src = paper.kind === "site" ? siteUrl(paper) : paper.url || "";
     let objectUrl = null;
     const isImage =
       paper.kind === "file" &&
@@ -1596,7 +1605,7 @@
 
     function build() {
       const frameSrc =
-        paper.kind === "file" && !isImage ? src + "#view=FitH" : src;
+        paper.kind !== "link" && !isImage ? src + "#view=FitH" : src;
       const media = isImage
         ? '<img src="' + esc(src) + '" alt="' + esc(title) + '">'
         : '<iframe src="' +
@@ -1617,7 +1626,7 @@
         .map(esc)
         .join(" · ");
       const footMeta = [
-        paper.kind === "file" ? fileExt(paper) + " · " + formatSize(paper.fileSize) : "External link",
+        paper.kind !== "link" ? fileExt(paper) + " · " + formatSize(paper.fileSize) : "External link",
         "Added " + formatDate(paper.addedAt),
       ]
         .map(esc)
@@ -1894,15 +1903,15 @@
       paper.year +
       (paper.paperNumber ? "-paper-" + paper.paperNumber : "");
 
-    if (paper.kind === "link") {
-      const dlUrl = downloadUrlForPaper(paper);
+    if (paper.kind === "link" || paper.kind === "site") {
+      const dlUrl = paper.kind === "site" ? siteUrl(paper) : downloadUrlForPaper(paper);
       if (!dlUrl) {
         toast("This paper has no link attached.", { error: true });
         return;
       }
       const link = document.createElement("a");
       link.href = dlUrl;
-      link.target = "_blank";
+      if (new URL(dlUrl).origin !== location.origin) link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.download = fallbackName + ".pdf";
       document.body.appendChild(link);
@@ -1936,7 +1945,8 @@
       toast("This paper has no link attached.", { error: true });
       return;
     }
-    window.open(paper.url, "_blank", "noopener");
+    const url = paper.kind === "site" ? siteUrl(paper) : paper.url;
+    if (url) window.open(url, "_blank", "noopener");
   }
 
   /* ---------- Backup / restore ------------------------------------------ */
@@ -2093,6 +2103,9 @@
             typeof item.fileName === "string" && item.fileName
               ? item.fileName
               : "paper-" + year + ".pdf";
+        } else if (item.kind === "site" && siteUrl(item)) {
+          Object.assign(meta, {kind: "site", url: item.url, fileType: "application/pdf",
+            fileName: item.url.split("/").pop(), fileSize: Number(item.fileSize) || 0});
         } else if (typeof item.url === "string" && safeUrl(item.url)) {
           meta.kind = "link";
           meta.url = safeUrl(item.url);
@@ -2390,6 +2403,26 @@
   }
 
   async function seedDefaultPapers() {
+    await seedOriginalLibrary();
+    const key = "muhs.hosted.v1";
+    const seen = new Set(readArray(key));
+    for (const item of DATA.hostedPapers || []) {
+      if (seen.has(item.id) || !validPaper(item) || !siteUrl(item)) continue;
+      const previous = getPaper(item.id);
+      const original = DATA.defaultPapers.find(p => p.id === item.id);
+      // A missing previously seeded Drive record may have been deliberately deleted.
+      if ((!previous && !original) || (previous?.kind === "link" && previous.url === original?.url)) {
+        const copy = { ...item, paperNumber: previous ? previous.paperNumber : item.paperNumber };
+        await dbPut("papers", copy);
+        if (previous) Object.assign(previous, copy);
+        else state.papers.push(copy);
+      }
+      seen.add(item.id);
+    }
+    writeStorage(key, JSON.stringify([...seen]));
+  }
+
+  async function seedOriginalLibrary() {
     const defaults = Array.isArray(DATA.defaultPapers) ? DATA.defaultPapers : [];
     if (!defaults.length || readString(SEEDED_KEY) === "1") return;
     const existing = new Set(state.papers.map((p) => p.id));
@@ -2418,7 +2451,8 @@
       state.storageOk = false;
       console.warn("MUHS Papers: browser storage unavailable", err);
       if (Array.isArray(DATA.defaultPapers)) {
-        state.papers = DATA.defaultPapers.filter(validPaper).map((paper) => ({
+        const catalogue = new Map([...DATA.defaultPapers, ...(DATA.hostedPapers || [])].map(p => [p.id, p]));
+        state.papers = [...catalogue.values()].filter(validPaper).map((paper) => ({
           ...paper,
           year: Number(paper.year),
         }));

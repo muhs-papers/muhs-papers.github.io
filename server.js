@@ -9,6 +9,7 @@ const ROOT = path.resolve(__dirname);
 const PORT = Number(process.env.PORT) || 4173;
 
 const TYPES = {
+  ".pdf": "application/pdf",
   ".woff2": "font/woff2",
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
