@@ -2963,7 +2963,7 @@ select.input {
   --line: #dde6e9; --line-strong: #b4c8ce;
   --accent: #62c8df; --accent-ink: #145e6e; --accent-soft: #eaf6f9;
   --marrow-blue: #1d7386;
-  --page-start: #f8fafb;
+  --page-start: var(--bg);
   --teal: #1d7386; --teal-soft: #e8f5f8;
   --btn-bg: var(--accent); --btn-bg-hover: #4abbd5; --btn-ink: #12313b;
   --focus: #1d7386; --focus-ring: rgba(98,200,223,.3);
@@ -2976,12 +2976,15 @@ select.input {
   --teal: #62c8df; --teal-soft: #193843;
   --btn-bg: #62c8df; --btn-bg-hover: #80d6e9; --btn-ink: #12313b;
   --focus: #62c8df;
-  --page-start: #151a1c;
+  --page-start: var(--bg);
 }
 body, [data-theme="dark"] body {
-  background: var(--bg);
+  background: linear-gradient(var(--page-start), var(--bg) 97.99%) top / 100% 460px no-repeat var(--bg);
 }
-.topbar, [data-theme="dark"] .topbar { background: var(--marrow-blue); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+body:has(.paper-intro) { --page-start: var(--marrow-blue); }
+[data-theme="dark"] body:has(.paper-intro) { --page-start: #164e5b; }
+.topbar, [data-theme="dark"] .topbar { background: var(--marrow-blue); border-bottom-color: transparent; }
+[data-theme="dark"] .topbar { background: #164e5b; }
 .topbar :is(.brand,.brand-text small,.nav a,.icon-btn) { color: #fff; }
 .topbar :is(.nav a,.icon-btn):hover, .topbar .nav a[aria-current="page"] {
   color: #fff; background: #165c6d;
