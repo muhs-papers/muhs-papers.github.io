@@ -31,6 +31,10 @@
   const CHAI_DELAY_MS = 30000;
   const CHAI_DISMISS_KEY = "muhs.chai.dismissed.v1";
   const TELEGRAM_CHANNEL_URL = "https://t.me/muhspapersarchive";
+  const APK_DOWNLOAD_URL =
+    "https://github.com/muhs-papers/muhs-papers.github.io/releases/download/apk-latest/MUHS-Papers.apk";
+  const APK_RELEASES_URL =
+    "https://github.com/muhs-papers/muhs-papers.github.io/releases/tag/apk-latest";
 
   /* Edit your Buy Me a Chai popup details here (or swap upi-qr.jpg with another image). */
   const CHAI_CONFIG = {
@@ -875,13 +879,34 @@
     );
   }
 
+  function isStandaloneApp() {
+    return (
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      Boolean(window.navigator.standalone)
+    );
+  }
+
   function renderHero() {
+    const installRow = isStandaloneApp()
+      ? ""
+      : '<div class="hero-install-row">' +
+        '<button class="btn btn-sm hero-install-btn" type="button" data-action="install-app">' +
+        icon("install") +
+        "<span>Install Web App</span></button>" +
+        '<a class="btn btn-ghost btn-sm hero-apk-btn" href="' +
+        esc(APK_DOWNLOAD_URL) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        icon("download") +
+        "<span>Download Android APK</span></a>" +
+        "</div>";
     return (
       '<section class="paper-intro">' +
       '<div class="hero-copy">' +
       '<p class="intro-label">MUHS / MBBS</p><h1>Previous year papers</h1>' +
       '<p>Select a Prof year and subject to find papers sorted by exam cycle, attempt and curriculum.</p>' +
-      '<small>' + SUBJECTS.length + ' subjects <span>·</span> ' + PROF_YEARS.length + ' Prof years</small></div>' +
+      '<small>' + SUBJECTS.length + ' subjects <span>·</span> ' + PROF_YEARS.length + ' Prof years</small>' +
+      installRow +
+      '</div>' +
       '<svg class="intro-art" aria-hidden="true" viewBox="0 0 240 155" fill="none"><circle cx="134" cy="82" r="68" fill="#62c8df" opacity=".13"/><g stroke="#62c8df" stroke-width="2"><rect x="88" y="19" width="87" height="116" rx="7" transform="rotate(12 88 19)" fill="#244451"/><rect x="76" y="25" width="87" height="116" rx="7" transform="rotate(-7 76 25)" fill="#14313d"/><path d="M95 51l22-3m-21 16 49-6m-47 19 49-6m-48 19 35-4"/><path d="M152 112h18l5-9 8 20 7-14h20" stroke-width="3" stroke-linejoin="round"/></g></svg>' +
       "</section>"
     );
@@ -3059,6 +3084,9 @@
       case "open-chai":
         openChaiModal();
         break;
+      case "install-app":
+        triggerInstallApp();
+        break;
       case "chai-done":
         writeStorage(CHAI_DISMISS_KEY, "1");
         closeModal(true);
@@ -3285,10 +3313,71 @@
     writeStorage(SEEDED_KEY, "1");
   }
 
+  function openInstallModal() {
+    const html =
+      '<div class="modal-backdrop" data-close-modal><div class="modal" role="dialog" aria-modal="true" aria-labelledby="install-title">' +
+      '<div class="modal-head"><div><h2 id="install-title">Install MUHS Papers</h2>' +
+      '<p>Use MUHS Papers like a native app on Windows or Android.</p></div>' +
+      '<button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close">' +
+      icon("close") +
+      "</button></div>" +
+      '<div class="modal-body">' +
+      '<div class="install-grid">' +
+      '<div class="install-card">' +
+      "<h3>Windows (Chrome / Edge)</h3>" +
+      "<p>Click the <strong>Install</strong> icon in the address bar (top right), or open browser menu <strong>⋮ / … → Apps → Install MUHS Papers</strong>.</p>" +
+      "</div>" +
+      '<div class="install-card">' +
+      "<h3>Android (Web App or APK)</h3>" +
+      "<p>In Chrome tap <strong>⋮ → Add to Home screen / Install app</strong>, or download the standalone Android APK below.</p>" +
+      '<a class="btn btn-primary btn-sm" href="' +
+      esc(APK_DOWNLOAD_URL) +
+      '" target="_blank" rel="noopener noreferrer">' +
+      icon("download") +
+      "<span>Download Android APK</span></a>" +
+      "</div>" +
+      "</div>" +
+      "</div>" +
+      '<div class="modal-foot"><a class="btn btn-ghost btn-sm" href="' +
+      esc(APK_RELEASES_URL) +
+      '" target="_blank" rel="noopener noreferrer">' +
+      icon("external") +
+      '<span>APK Releases</span></a><button class="btn btn-primary btn-sm" type="button" data-close-modal>Got it</button></div>' +
+      "</div></div>";
+    openModal(html);
+  }
+
+  async function triggerInstallApp() {
+    if (state.installPrompt) {
+      const promptEvent = state.installPrompt;
+      state.installPrompt = null;
+      try {
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice && choice.outcome === "accepted") {
+          toast("Installing MUHS Papers…");
+        }
+      } catch (err) {
+        openInstallModal();
+      }
+      return;
+    }
+    openInstallModal();
+  }
+
   async function boot() {
     initTheme();
     state.route = parseRoute();
     bindEvents();
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      state.installPrompt = event;
+    });
+    window.addEventListener("appinstalled", () => {
+      state.installPrompt = null;
+      toast("MUHS Papers installed!");
+      render();
+    });
     if (window.MUHS_SUBJECT_CODES && window.MUHS_SUBJECT_CODES.load) {
       await window.MUHS_SUBJECT_CODES.load("./muhs-subject-codes.json");
     }

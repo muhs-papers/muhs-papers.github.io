@@ -2941,6 +2941,53 @@ body:has(.paper-intro) { --page-start: var(--marrow-blue); }
 .paper-intro .intro-label { color: var(--accent-ink); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
 .paper-intro small { display: block; margin-top: 16px; color: var(--ink-3); }
 .paper-intro small span { margin: 0 5px; }
+.hero-install-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.hero-install-btn {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: var(--btn-ink);
+}
+.hero-install-btn:hover {
+  background: var(--btn-bg-hover);
+  border-color: var(--btn-bg-hover);
+  color: var(--btn-ink);
+}
+.install-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.install-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.install-card h3 {
+  margin: 0 0 6px;
+  font-size: 14.5px;
+}
+.install-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.install-card .btn {
+  margin-top: 10px;
+}
+@media (max-width: 680px) {
+  .install-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .intro-art { width: 215px; flex: none; }
 button, input, select, textarea, option, code, kbd { font-family: var(--sans); }
 .phase-tab, .seg span, .nav a { border-radius: 10px; font-weight: 600; }
