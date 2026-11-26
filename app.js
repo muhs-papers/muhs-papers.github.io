@@ -887,25 +887,12 @@
   }
 
   function renderHero() {
-    const installRow = isStandaloneApp()
-      ? ""
-      : '<div class="hero-install-row">' +
-        '<button class="btn btn-sm hero-install-btn" type="button" data-action="install-app">' +
-        icon("install") +
-        "<span>Install Web App</span></button>" +
-        '<a class="btn btn-ghost btn-sm hero-apk-btn" href="' +
-        esc(APK_DOWNLOAD_URL) +
-        '" target="_blank" rel="noopener noreferrer">' +
-        icon("download") +
-        "<span>Download Android APK</span></a>" +
-        "</div>";
     return (
       '<section class="paper-intro">' +
       '<div class="hero-copy">' +
       '<p class="intro-label">MUHS / MBBS</p><h1>Previous year papers</h1>' +
       '<p>Select a Prof year and subject to find papers sorted by exam cycle, attempt and curriculum.</p>' +
       '<small>' + SUBJECTS.length + ' subjects <span>·</span> ' + PROF_YEARS.length + ' Prof years</small>' +
-      installRow +
       '</div>' +
       '<svg class="intro-art" aria-hidden="true" viewBox="0 0 240 155" fill="none"><circle cx="134" cy="82" r="68" fill="#62c8df" opacity=".13"/><g stroke="#62c8df" stroke-width="2"><rect x="88" y="19" width="87" height="116" rx="7" transform="rotate(12 88 19)" fill="#244451"/><rect x="76" y="25" width="87" height="116" rx="7" transform="rotate(-7 76 25)" fill="#14313d"/><path d="M95 51l22-3m-21 16 49-6m-47 19 49-6m-48 19 35-4"/><path d="M152 112h18l5-9 8 20 7-14h20" stroke-width="3" stroke-linejoin="round"/></g></svg>' +
       "</section>"
@@ -3367,6 +3354,12 @@
 
   async function boot() {
     initTheme();
+    if (isStandaloneApp()) {
+      const installBtn = document.getElementById("topbar-install");
+      const apkBtn = document.getElementById("topbar-apk");
+      if (installBtn) installBtn.hidden = true;
+      if (apkBtn) apkBtn.hidden = true;
+    }
     state.route = parseRoute();
     bindEvents();
     window.addEventListener("beforeinstallprompt", (event) => {
