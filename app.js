@@ -711,6 +711,15 @@
         ? "Model"
         : paper.session || "Exam";
 
+    const deleteAction =
+      paper.kind === "file"
+        ? '<button class="icon-action" type="button" data-action="delete-paper" data-id="' +
+          esc(paper.id) +
+          '" aria-label="Remove local paper" title="Remove local paper">' +
+          icon("trash") +
+          "</button>"
+        : "";
+
     return (
       '<article class="paper-row' +
       (paper.demo ? " is-demo" : "") +
@@ -741,6 +750,7 @@
       bookmarkButton(paper) +
       downloadAction +
       linkAction +
+      deleteAction +
       "</div>" +
       "</article>"
     );
@@ -3039,6 +3049,9 @@
       case "download":
         downloadPaper(id);
         break;
+      case "delete-paper":
+        deleteLocalPaper(id);
+        break;
       case "open-link":
         openLinkPaper(id);
         break;
@@ -3352,6 +3365,22 @@
     openInstallModal();
   }
 
+  async function deleteLocalPaper(id) {
+    const paper = getPaper(id);
+    if (!paper || paper.kind !== "file") return;
+    try {
+      await dbDelete("papers", id);
+      await dbDelete("files", id);
+    } catch (err) {}
+    state.papers = state.papers.filter((p) => p.id !== id);
+    if (state.bookmarks.has(id)) {
+      state.bookmarks.delete(id);
+      saveBookmarks();
+    }
+    toast("Removed local paper");
+    render();
+  }
+
   async function boot() {
     initTheme();
     if (isStandaloneApp()) {
@@ -3378,6 +3407,17 @@
       const papers = await dbGetAll("papers");
       const rawById = new Map(papers.map((p) => [p.id, p]));
       state.papers = papers.filter(validPaper).map(normalizePaper);
+      const stale2026 = state.papers.filter(
+        (p) => p.kind === "file" && p.subjectId === "anatomy" && Number(p.examYear || p.year) === 2026
+      );
+      if (stale2026.length) {
+        for (const p of stale2026) {
+          await dbDelete("papers", p.id).catch(() => {});
+          await dbDelete("files", p.id).catch(() => {});
+        }
+        const staleIds = new Set(stale2026.map((p) => p.id));
+        state.papers = state.papers.filter((p) => !staleIds.has(p.id));
+      }
       await seedDefaultPapers(rawById);
     } catch (err) {
       state.storageOk = false;
