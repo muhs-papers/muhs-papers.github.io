@@ -30,6 +30,7 @@
   const SEEDED_KEY = "muhs.seeded.v1";
   const CHAI_DELAY_MS = 30000;
   const CHAI_DISMISS_KEY = "muhs.chai.dismissed.v1";
+  const TELEGRAM_CHANNEL_URL = "https://t.me/muhspapersarchive";
 
   /* Edit your Buy Me a Chai popup details here (or swap upi-qr.jpg with another image). */
   const CHAI_CONFIG = {
@@ -68,6 +69,20 @@
       '" aria-hidden="true"><use href="#i-' +
       name +
       '"></use></svg>'
+    );
+  }
+
+  function telegramContributeLink(cls, label) {
+    return (
+      '<a class="btn ' +
+      (cls || "btn-primary") +
+      '" href="' +
+      esc(TELEGRAM_CHANNEL_URL) +
+      '" target="_blank" rel="noopener noreferrer">' +
+      icon("telegram") +
+      "<span>" +
+      esc(label || "Contribute on Telegram") +
+      "</span></a>"
     );
   }
 
@@ -959,9 +974,9 @@
       parts.push(
         '<div class="callout"><span class="callout-icon">' +
           icon("sparkle") +
-          '</span><div class="callout-text"><h3>No papers saved yet</h3><p>Upload your first paper or try the library with sample PDFs.</p></div><div class="callout-actions"><button class="btn btn-primary btn-sm" type="button" data-action="open-add">' +
-          icon("plus") +
-          'Add a paper</button><button class="btn btn-ghost btn-sm" type="button" data-action="load-demo">Load sample library</button></div></div>'
+          '</span><div class="callout-text"><h3>No papers saved yet</h3><p>Contribute missing papers on Telegram or try the library with sample PDFs.</p></div><div class="callout-actions">' +
+          telegramContributeLink("btn-primary btn-sm", "Contribute on Telegram") +
+          '<button class="btn btn-ghost btn-sm" type="button" data-action="load-demo">Load sample library</button></div></div>'
       );
     }
 
@@ -1186,11 +1201,9 @@
         '</p><div class="subject-meta">' +
         metaChips +
         "</div></div>" +
-        '<div class="subject-actions"><button class="btn btn-primary" type="button" data-action="open-add" data-subject="' +
-        subject.id +
-        '">' +
-        icon("plus") +
-        " Add paper</button></div>" +
+        '<div class="subject-actions">' +
+        telegramContributeLink("btn-primary", "Contribute on Telegram") +
+        "</div>" +
         "</div>" +
         renderCurriculumTabs(allSubjectPapers, true) +
         "</div>",
@@ -1254,7 +1267,7 @@
               " available under the " +
               esc(otherBucket) +
               " tab."
-            : "Add the first one — a PDF from your college library, a senior's folder or a university release. It stays in your browser.") +
+            : "Have this paper? Share it on our Telegram channel to help crowdsource the archive.") +
           "</p>" +
           '<div class="empty-actions">' +
           (otherCount
@@ -1264,13 +1277,7 @@
               esc(otherBucket) +
               " papers</button>"
             : "") +
-          '<button class="btn ' +
-          (otherCount ? "btn-ghost" : "btn-primary") +
-          '" type="button" data-action="open-add" data-subject="' +
-          subject.id +
-          '">' +
-          icon("plus") +
-          " Add a paper</button>" +
+          telegramContributeLink(otherCount ? "btn-ghost" : "btn-primary", "Contribute on Telegram") +
           (!allSubjectPapers.length && !state.papers.some((p) => p.demo)
             ? '<button class="btn btn-ghost" type="button" data-action="load-demo">Load sample library</button>'
             : "") +
@@ -1281,11 +1288,9 @@
       parts.push(
         '<div class="empty"><h3>No papers match these filters</h3><p>Try a different paper number, session, attempt or year, or clear the filters to see all ' +
           plural(bucketPapers.length, activeBucket + " paper", activeBucket + " papers") +
-          ' for this subject.</p><div class="empty-actions"><button class="btn btn-primary" type="button" data-action="open-add" data-subject="' +
-          subject.id +
-          '">' +
-          icon("plus") +
-          ' Add a paper</button><button class="btn btn-ghost" type="button" data-action="clear-filters">Clear filters</button></div></div>'
+          ' for this subject.</p><div class="empty-actions">' +
+          telegramContributeLink("btn-primary", "Contribute on Telegram") +
+          '<button class="btn btn-ghost" type="button" data-action="clear-filters">Clear filters</button></div></div>'
       );
     } else {
       parts.push(renderPaperGroups(list, "subject"));
@@ -1362,11 +1367,11 @@
 
       <div class="about-card">
         <h2>Where the papers come from</h2>
-        <p>You do. This app doesn't scrape or host question papers — it gives the papers you already have a tidy, searchable home. Most students collect them from the college library, department notice boards, seniors, or official university releases.</p>
+        <p>From MBBS students like you. Have missing or recent MUHS question papers? Share them on our Telegram channel so everyone benefits.</p>
         <ol class="steps">
-          <li>Open a subject page and choose <strong>Add paper</strong>.</li>
-          <li>Pick the session and year, then attach a PDF or paste a link.</li>
-          <li>Use <strong>Export backup</strong> below to save everything and share it.</li>
+          <li>Join our <a href="${TELEGRAM_CHANNEL_URL}" target="_blank" rel="noopener noreferrer"><strong>Telegram channel</strong></a>.</li>
+          <li>Send PDFs or photos of missing MUHS question papers.</li>
+          <li>Use <strong>Export backup</strong> below to save your bookmarks and local notes.</li>
         </ol>
       </div>
 
