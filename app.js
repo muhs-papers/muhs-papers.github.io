@@ -2442,7 +2442,7 @@
         "</div>" +
         '<div class="preview-foot"><span>' +
         footMeta +
-        ' · <select aria-label="Change paper number" data-edit-part="' + esc(id) + '">' +
+        '<span class="preview-foot-sep"> · </span><select aria-label="Change paper number" data-edit-part="' + esc(id) + '">' +
         (!paper.paperNumber ? '<option value="">Set paper number</option>' : '') +
         [1,2].map(n => '<option value="' + n + '"' + (paper.paperNumber === n ? " selected" : "") + '>Paper ' + n + '</option>').join("") +
         '</select>' +

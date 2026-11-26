@@ -151,6 +151,15 @@ p {
   margin: 0 0 1em;
 }
 
+a,
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 a {
   color: inherit;
   text-underline-offset: 3px;
@@ -2599,25 +2608,52 @@ select.input {
 }
 
 @media (max-width: 680px) {
+  .topbar {
+    position: relative;
+    padding-top: env(safe-area-inset-top);
+  }
+
   #view {
-    padding: 0 16px;
+    padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   }
 
   .topbar-inner {
     padding: 10px 16px 0;
+    gap: 8px 10px;
   }
 
   .footer-inner {
-    padding: 26px 16px 30px;
+    padding: 26px 16px max(30px, env(safe-area-inset-bottom));
+  }
+
+  .brand {
+    gap: 8px;
   }
 
   .brand-mark {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
   }
 
   .brand-text strong {
-    font-size: 16.5px;
+    font-size: 15.5px;
+  }
+
+  .brand-text small {
+    font-size: 9px;
+  }
+
+  .topbar-actions {
+    gap: 5px;
+  }
+
+  .topbar-actions .icon-btn,
+  .topbar-add,
+  .topbar-install,
+  .topbar-apk {
+    width: 36px;
+    height: 36px;
+    padding: 0;
   }
 
   .topbar-add span,
@@ -2626,12 +2662,36 @@ select.input {
     display: none;
   }
 
-  .topbar-add,
-  .topbar-install,
-  .topbar-apk {
-    width: 36px;
-    height: 36px;
-    padding: 0;
+  .nav a {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  .seg span,
+  .phase-tab,
+  .phase-bhalani-btn,
+  .browse-chai {
+    min-height: 38px;
+  }
+
+  .seg span {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .select select {
+    height: 40px;
+  }
+
+  .footer-links a,
+  .footer-links .footer-link-btn {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .preview-foot-sep {
+    display: none;
   }
 
   .hero {
@@ -2707,9 +2767,9 @@ select.input {
     margin-right: auto;
   }
 
-  .icon-action {
-    width: 36px;
-    height: 36px;
+  .paper-actions .icon-action {
+    width: 40px;
+    height: 40px;
   }
 
   .paper-title {
@@ -2876,9 +2936,9 @@ select.input {
     height: 39px;
   }
 
-  .icon-action {
-    width: 36px;
-    height: 36px;
+  .paper-actions .icon-action {
+    width: 40px;
+    height: 40px;
   }
 }
 
@@ -2966,8 +3026,10 @@ body:has(.paper-intro) { --page-start: var(--marrow-blue); }
   border-color: var(--line-strong);
   color: var(--teal);
 }
-.search {
-  width: clamp(160px, 18vw, 240px);
+@media (min-width: 901px) {
+  .search {
+    width: clamp(160px, 18vw, 240px);
+  }
 }
 .install-grid {
   display: grid;
