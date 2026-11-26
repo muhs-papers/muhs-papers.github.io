@@ -1,16 +1,21 @@
-const CACHE_NAME = "muhs-papers-v4";
+const CACHE_NAME = "muhs-papers-v17";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./data.js",
   "./hosted-papers.js",
+  "./muhs-subject-codes.json",
+  "./subject-codes.js",
+  "./taxonomy.js",
+  "./pdf-scanner.js",
   "./app.js",
   "./manifest.json",
   "./icon.svg",
   "./icon-192.png",
   "./icon-512.png",
   "./subject-icons.svg",
+  "./upi-qr.jpg",
   "./fonts/open-sans.woff2",
 ];
 

@@ -1,36 +1,39 @@
-/* MUHS Papers — subject catalogue
- * Covers the MUHS MBBS (CBME) phases and their university exam subjects.
- * Edit or extend this file to match your college's current scheme.
+/* MUHS Papers — subject & Prof Year catalogue
+ * Follows MUHS MBBS University Question Paper Taxonomy (.agents/rules/muhs-paper-taxonomy.md).
  */
 window.MUHS_DATA = {
-  phases: [
+  profYears: [
     {
-      id: "phase1",
-      label: "Phase I",
-      name: "First MBBS",
+      id: "FIRST",
+      legacyPhase: "phase1",
+      label: "First MBBS",
+      name: "1st Professional",
       tag: "Pre-clinical",
       desc: "Anatomy, physiology and biochemistry — the foundations of medicine.",
     },
     {
-      id: "phase2",
-      label: "Phase II",
-      name: "Second MBBS",
+      id: "SECOND",
+      legacyPhase: "phase2",
+      label: "Second MBBS",
+      name: "2nd Professional",
       tag: "Para-clinical",
-      desc: "Pathology, pharmacology, microbiology and forensic medicine.",
+      desc: "Pathology, pharmacology, microbiology and forensic medicine (OLD scheme).",
     },
     {
-      id: "phase3a",
-      label: "Phase III · Part I",
-      name: "Third MBBS",
-      tag: "Clinical specialties",
-      desc: "ENT, ophthalmology and community medicine.",
+      id: "THIRD_PART_1",
+      legacyPhase: "phase3a",
+      label: "Third MBBS · Part I",
+      name: "3rd Professional · Pt I",
+      tag: "Clinical & community",
+      desc: "Community medicine, forensic medicine (CBME), plus ENT & ophthalmology (OLD / CBME 2019).",
     },
     {
-      id: "phase3b",
-      label: "Phase III · Part II",
-      name: "Final MBBS",
+      id: "THIRD_PART_2",
+      legacyPhase: "phase3b",
+      label: "Final MBBS · Part II",
+      name: "Final Professional",
       tag: "Final clinical",
-      desc: "Medicine, surgery, paediatrics, obstetrics & gynaecology and allied specialties.",
+      desc: "Medicine, surgery, paediatrics, OBGYN & allied specialties (plus ENT & ophthalmology under CBME 2021+).",
     },
   ],
 
@@ -40,6 +43,8 @@ window.MUHS_DATA = {
       name: "Anatomy",
       code: "AN",
       phase: "phase1",
+      profYear: "FIRST",
+      multiPaper: true,
       blurb: "Gross anatomy, histology, embryology and neuroanatomy.",
     },
     {
@@ -47,6 +52,8 @@ window.MUHS_DATA = {
       name: "Physiology",
       code: "PY",
       phase: "phase1",
+      profYear: "FIRST",
+      multiPaper: true,
       blurb: "Body systems, homeostasis and applied physiology.",
     },
     {
@@ -54,6 +61,8 @@ window.MUHS_DATA = {
       name: "Biochemistry",
       code: "BI",
       phase: "phase1",
+      profYear: "FIRST",
+      multiPaper: true,
       blurb: "Metabolism, molecular biology and clinical biochemistry.",
     },
 
@@ -62,6 +71,8 @@ window.MUHS_DATA = {
       name: "Pathology",
       code: "PA",
       phase: "phase2",
+      profYear: "SECOND",
+      multiPaper: true,
       blurb: "General and systemic pathology, haematology and cytology.",
     },
     {
@@ -69,6 +80,8 @@ window.MUHS_DATA = {
       name: "Pharmacology",
       code: "PH",
       phase: "phase2",
+      profYear: "SECOND",
+      multiPaper: true,
       blurb: "Drug classes, mechanisms, therapeutics and prescribing.",
     },
     {
@@ -76,14 +89,19 @@ window.MUHS_DATA = {
       name: "Microbiology",
       code: "MI",
       phase: "phase2",
+      profYear: "SECOND",
+      multiPaper: true,
       blurb: "Bacteriology, virology, mycology and immunology.",
     },
     {
       id: "forensic",
       name: "Forensic Medicine & Toxicology",
       code: "FM",
-      phase: "phase2",
-      blurb: "Medico-legal work, autopsy practice and toxicology.",
+      phase: "phase3a",
+      profYear: "THIRD_PART_1",
+      oldProfYear: "SECOND",
+      multiPaper: false,
+      blurb: "Medico-legal work, autopsy practice and toxicology (2nd MBBS in OLD · 3rd MBBS Pt I in CBME).",
     },
 
     {
@@ -91,20 +109,28 @@ window.MUHS_DATA = {
       name: "ENT",
       code: "EN",
       phase: "phase3a",
-      blurb: "Otorhinolaryngology — ear, nose, throat and head & neck.",
+      profYear: "THIRD_PART_1",
+      splitProfYear: "THIRD_PART_2",
+      multiPaper: false,
+      blurb: "Otorhinolaryngology — 3rd Pt I in OLD/CBME 2019 · Final Pt II in CBME 2021+.",
     },
     {
       id: "ophthalmology",
       name: "Ophthalmology",
       code: "OP",
       phase: "phase3a",
-      blurb: "Eye diseases, refraction, optics and ocular surgery.",
+      profYear: "THIRD_PART_1",
+      splitProfYear: "THIRD_PART_2",
+      multiPaper: false,
+      blurb: "Eye diseases & ocular surgery — 3rd Pt I in OLD/CBME 2019 · Final Pt II in CBME 2021+.",
     },
     {
       id: "community",
       name: "Community Medicine",
       code: "CM",
       phase: "phase3a",
+      profYear: "THIRD_PART_1",
+      multiPaper: true,
       blurb: "Epidemiology, biostatistics and national health programmes.",
     },
 
@@ -113,6 +139,8 @@ window.MUHS_DATA = {
       name: "General Medicine",
       code: "MD",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: true,
       blurb: "Internal medicine and its allied specialties.",
     },
     {
@@ -120,6 +148,8 @@ window.MUHS_DATA = {
       name: "General Surgery",
       code: "SU",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: true,
       blurb: "Principles of surgery and the surgical specialties.",
     },
     {
@@ -127,6 +157,8 @@ window.MUHS_DATA = {
       name: "Paediatrics",
       code: "PE",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: false,
       blurb: "Child health, growth, development and neonatology.",
     },
     {
@@ -134,6 +166,8 @@ window.MUHS_DATA = {
       name: "Obstetrics & Gynaecology",
       code: "OG",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: true,
       blurb: "Pregnancy, childbirth and women's health.",
     },
     {
@@ -141,6 +175,8 @@ window.MUHS_DATA = {
       name: "Orthopaedics",
       code: "OR",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: false,
       blurb: "Bone, joint and trauma care.",
     },
     {
@@ -148,6 +184,8 @@ window.MUHS_DATA = {
       name: "Psychiatry",
       code: "PS",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: false,
       blurb: "Mental health, behavioural sciences and therapy.",
     },
     {
@@ -155,6 +193,8 @@ window.MUHS_DATA = {
       name: "Dermatology",
       code: "DE",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: false,
       blurb: "Skin, venereal diseases and leprosy.",
     },
     {
@@ -162,6 +202,8 @@ window.MUHS_DATA = {
       name: "Anaesthesiology",
       code: "AS",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: false,
       blurb: "Anaesthesia, critical care and pain management.",
     },
     {
@@ -169,6 +211,8 @@ window.MUHS_DATA = {
       name: "Radiodiagnosis",
       code: "RD",
       phase: "phase3b",
+      profYear: "THIRD_PART_2",
+      multiPaper: false,
       blurb: "Imaging — X-ray, CT, MRI and ultrasound.",
     },
   ],

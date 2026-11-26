@@ -8,10 +8,12 @@
 
   /* ---------- Catalogue ------------------------------------------------- */
   const DATA = window.MUHS_DATA;
+  const T = window.MUHS_TAXONOMY;
   const SUBJECTS = DATA.subjects;
-  const PHASES = DATA.phases;
+  const PROF_YEARS = DATA.profYears || DATA.phases || Object.values(T.PROF_YEARS);
   const SUBJECT_BY_ID = new Map(SUBJECTS.map((s) => [s.id, s]));
-  const PHASE_BY_ID = new Map(PHASES.map((p) => [p.id, p]));
+  const PROF_YEAR_BY_ID = new Map(PROF_YEARS.map((p) => [p.id, p]));
+  const ROMAN_PHASES = ["", "I", "II", "III", "IV", "V", "VI"];
   const CURRENT_YEAR = new Date().getFullYear();
   const FIRST_YEAR = DATA.firstYear || 2012;
   const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -26,6 +28,21 @@
   const THEME_KEY = "muhs.theme";
   const LAST_SUBJECT_KEY = "muhs.lastSubject";
   const SEEDED_KEY = "muhs.seeded.v1";
+  const CHAI_DELAY_MS = 30000;
+  const CHAI_DISMISS_KEY = "muhs.chai.dismissed.v1";
+
+  /* Edit your Buy Me a Chai popup details here (or swap upi-qr.jpg with another image). */
+  const CHAI_CONFIG = {
+    title: "Buy me a chai",
+    subtitle: "Keep MUHS Papers brewing & 100% free",
+    minBadge: "Pay minimum ₹10 · Just one cutting chai",
+    description:
+      "Hey there! I'm Kaustubh Kadu, a 3rd yr MBBS student at PDMMC, Amravati. I put this library together so finding past MUHS papers feels quick and stress-free before exams. If it saved you some study time, treat me to a hot cup of chai — even ₹10 keeps the archive brewing and 100% free!",
+    payeeName: "Kaustubh Kadu",
+    upiId: "",
+    qrImageSrc: "upi-qr.jpg",
+    note: "Scan with GPay, PhonePe, Paytm, or any UPI app · ₹10 minimum",
+  };
 
   const YEARS = [];
   for (let y = CURRENT_YEAR; y >= FIRST_YEAR; y -= 1) YEARS.push(y);
@@ -91,17 +108,54 @@
     return String(text || "").toLowerCase();
   }
 
-  function sessionRank(session) {
-    return session === "Winter" ? 2 : 1;
+  function normalizePaper(raw) {
+    if (!raw || typeof raw !== "object") return raw;
+    const sub = SUBJECT_BY_ID.get(raw.subjectId);
+    const parsedHint = !raw.curriculumScheme && raw.rawHeaderText
+      ? T.parseHeader(raw.rawHeaderText, { subjectIdHint: raw.subjectId })
+      : null;
+    const yearRaw = raw.examYear != null ? raw.examYear : raw.year;
+    const examYear = yearRaw == null || yearRaw === "" ? null : Number(yearRaw);
+    const sessRaw = String(raw.examSession || raw.session || "").toUpperCase();
+    const examSession = sessRaw === "WINTER" || sessRaw === "SUMMER" ? sessRaw : null;
+    const isComp = Boolean(raw.isCompilation || raw.catalogueGroup === "Multi-year collection");
+    const scheme =
+      raw.curriculumScheme ||
+      (parsedHint && parsedHint.curriculumScheme) ||
+      (isComp || (examYear && examYear <= 2020) ? "OLD" : "CBME_2019");
+    const curriculumBucket = scheme === "OLD" ? "OLD" : "CBME";
+    const attemptType = isComp
+      ? "COMPILATION"
+      : !examYear || !examSession
+        ? "MODEL"
+        : String(raw.attemptType || (parsedHint && parsedHint.attemptType) || (/suppl/i.test(raw.title || "") ? "SUPPLEMENTARY" : "REGULAR")).toUpperCase();
+    const profYear = raw.profYear || T.applySubjectYearShift(
+      T.SUBJECT_BY_ID.get(raw.subjectId),
+      sub ? sub.profYear : null,
+      scheme
+    );
+    const paperNumber = [1, 2].includes(Number(raw.paperNumber)) ? Number(raw.paperNumber) : null;
+    return {
+      ...raw,
+      qpCode: raw.qpCode || (parsedHint && parsedHint.qpCode) || null,
+      profYear,
+      subject: raw.subject || (sub ? sub.name : ""),
+      paperNumber,
+      curriculumScheme: scheme,
+      curriculumBucket,
+      examSession,
+      examYear,
+      examPhase: raw.examPhase != null ? Number(raw.examPhase) : (parsedHint ? parsedHint.examPhase : null),
+      attemptType,
+      paperSection: raw.paperSection || "COMBINED",
+      isCompilation: isComp,
+      session: examSession ? T.formatSessionLabel(examSession) : null,
+      year: examYear,
+    };
   }
 
   function byRecency(a, b) {
-    return (
-      b.year - a.year ||
-      sessionRank(b.session) - sessionRank(a.session) ||
-      (a.paperNumber || 99) - (b.paperNumber || 99) ||
-      String(b.addedAt || "").localeCompare(String(a.addedAt || ""))
-    );
+    return T.comparePapersRecency(a, b);
   }
 
   function makeId() {
@@ -110,19 +164,42 @@
     );
   }
 
+  function profYearInfo(profYearId) {
+    return PROF_YEAR_BY_ID.get(profYearId) || PROF_YEARS[0];
+  }
+
+  function subjectProfYearForBucket(subject, bucket) {
+    const activeBucket = bucket || state.curriculumBucket || "CBME";
+    const matching = state.papers.filter(
+      (p) => p.subjectId === subject.id && (p.curriculumBucket || "CBME") === activeBucket
+    );
+    if (matching.length && matching[0].profYear) {
+      // If ENT/Ophthalmology in CBME has mixed 2019 & 2021+, show primary profYear of most recent paper
+      const latest = latestPaper(matching);
+      if (latest && latest.profYear) return latest.profYear;
+    }
+    if (activeBucket === "OLD" && subject.oldProfYear) return subject.oldProfYear;
+    return subject.profYear || "FIRST";
+  }
+
   function subjectPhase(subject) {
-    return PHASE_BY_ID.get(subject.phase);
+    return profYearInfo(subjectProfYearForBucket(subject, state.curriculumBucket));
   }
 
-  function phasePaperCount(phaseId) {
-    return state.papers.filter((p) => {
-      const s = SUBJECT_BY_ID.get(p.subjectId);
-      return s && s.phase === phaseId;
-    }).length;
+  function papersInBucket(papers, bucket) {
+    return papers.filter((p) => (p.curriculumBucket || "CBME") === bucket);
   }
 
-  function papersForSubject(subjectId) {
-    return state.papers.filter((p) => p.subjectId === subjectId);
+  function profYearPaperCount(profYearId, bucket) {
+    return state.papers.filter(
+      (p) => p.profYear === profYearId && (!bucket || (p.curriculumBucket || "CBME") === bucket)
+    ).length;
+  }
+
+  function papersForSubject(subjectId, bucket) {
+    return state.papers.filter(
+      (p) => p.subjectId === subjectId && (!bucket || (p.curriculumBucket || "CBME") === bucket)
+    );
   }
 
   function getPaper(id) {
@@ -135,26 +212,34 @@
   }
 
   function partLabel(paper) {
-    return paper.paperNumber === 1 || paper.paperNumber === 2
-      ? "Paper " + paper.paperNumber : "Number not set";
+    if (paper.paperNumber === 1) return "Paper I";
+    if (paper.paperNumber === 2) return "Paper II";
+    const sub = SUBJECT_BY_ID.get(paper.subjectId);
+    return sub && sub.multiPaper === false ? "Single paper" : "Paper not specified";
   }
 
   function catalogueGroup(paper) {
-    if (paper.kind !== "site") return "";
-    return ["Multi-year collection", "Exam session unverified"].includes(paper.catalogueGroup)
-      ? paper.catalogueGroup : "";
+    if (paper.isCompilation || paper.catalogueGroup === "Multi-year collection") {
+      return "Multi-Year Compilations (OLD)";
+    }
+    if (paper.attemptType === "MODEL") return "CBME Model & Specimen Papers";
+    return "";
   }
 
   function examLabel(paper) {
-    return catalogueGroup(paper) || (paper.session + " " + paper.year);
+    if (paper.isCompilation) {
+      return "Compilation" + (paper.compilationSpan ? " · " + paper.compilationSpan : "");
+    }
+    if (paper.attemptType === "MODEL") {
+      return T.formatSchemeBadge(paper.curriculumScheme) + " Model Paper";
+    }
+    if (paper.session && paper.year) return paper.session + " " + paper.year;
+    return catalogueGroup(paper) || T.formatSchemeBadge(paper.curriculumScheme);
   }
 
   function defaultTitle(paper) {
     if (paper.title && paper.title.trim()) return paper.title.trim();
-    const s = SUBJECT_BY_ID.get(paper.subjectId);
-    return (
-      (s ? s.name : "Paper") + " — " + paper.session + " " + paper.year
-    );
+    return T.formatPaperTitle(paper);
   }
 
   function fileExt(paper) {
@@ -297,11 +382,15 @@
     papers: [],
     bookmarks: new Set(readArray(BOOKMARK_KEY).filter((x) => typeof x === "string")),
     query: "",
-    phase: "all",
-    filters: { session: "all", year: "all", part: "all" },
+    profYear: "all",
+    curriculumBucket: "CBME",
+    filters: { part: "all", session: "all", attempt: "all", scheme: "all", year: "all" },
     route: { name: "browse", subjectId: null },
     theme: "light",
     addFile: null,
+    scanResult: null,
+    scanAbort: null,
+    scanInFlight: false,
     lastFocus: null,
     currentObjectUrl: null,
     storageOk: true,
@@ -434,20 +523,27 @@
   function paperMatches(paper, query) {
     if (!query) return true;
     const s = SUBJECT_BY_ID.get(paper.subjectId);
-    const phase = s ? subjectPhase(s) : null;
+    const prof = PROF_YEAR_BY_ID.get(paper.profYear);
     const hay = normalize(
       [
         paper.title,
+        paper.qpCode,
+        paper.curriculumScheme,
+        T.formatSchemeBadge(paper.curriculumScheme),
+        paper.curriculumBucket,
+        paper.attemptType,
+        T.formatAttemptLabel(paper.attemptType),
+        paper.paperSection,
+        paper.examPhase ? "Phase " + ROMAN_PHASES[paper.examPhase] + " Phase " + paper.examPhase : "",
+        paper.rawHeaderText,
         partLabel(paper),
         paper.session,
         paper.year,
         paper.fileName,
         s ? s.name : "",
         s ? s.code : "",
-        s ? s.blurb : "",
-        phase ? phase.label : "",
-        phase ? phase.name : "",
-        phase ? phase.tag : "",
+        prof ? prof.label : "",
+        prof ? prof.name : "",
       ].join(" ")
     );
     return matchesAll(hay, query);
@@ -455,15 +551,15 @@
 
   function subjectMatches(subject, query) {
     if (!query) return true;
-    const phase = subjectPhase(subject);
+    const prof = subjectPhase(subject);
     const hay = normalize(
       [
         subject.name,
         subject.code,
         subject.blurb,
-        phase ? phase.label : "",
-        phase ? phase.name : "",
-        phase ? phase.tag : "",
+        prof ? prof.label : "",
+        prof ? prof.name : "",
+        prof ? prof.tag : "",
       ].join(" ")
     );
     return matchesAll(hay, query);
@@ -504,12 +600,36 @@
   function paperMeta(paper, context) {
     const s = SUBJECT_BY_ID.get(paper.subjectId);
     const bits = [];
+    if (paper.isCompilation) {
+      bits.push(
+        "Compilation" +
+          (paper.compilationSpan ? " (" + esc(paper.compilationSpan) + ")" : "") +
+          " · " +
+          esc(T.formatSchemeBadge(paper.curriculumScheme))
+      );
+    } else if (paper.attemptType === "MODEL") {
+      bits.push(
+        "Model Paper · " + esc(T.formatSchemeBadge(paper.curriculumScheme))
+      );
+    } else {
+      bits.push(esc(T.formatCardMetaLine(paper)));
+    }
+    if (paper.paperSection === "MCQ") bits.push("MCQ Sec. A");
+    else if (paper.paperSection === "THEORY") bits.push("Theory");
     bits.push(partLabel(paper));
     if (context !== "subject" && s) bits.push(esc(s.name));
     if (paper.kind === "file" || paper.kind === "site") {
       bits.push(fileExt(paper) + " · " + formatSize(paper.fileSize));
     } else {
       bits.push("External link");
+    }
+    if (paper.qpCode) bits.push("QP " + esc(paper.qpCode));
+    if (paper.examPhase) {
+      bits.push(
+        '<span class="wave-chip" title="MUHS exam wave (administrative schedule, not MBBS year)">Phase ' +
+          esc(ROMAN_PHASES[paper.examPhase] || paper.examPhase) +
+          "</span>"
+      );
     }
     if (paper.demo) bits.push('<span class="demo-flag">Demo</span>');
     return bits
@@ -559,6 +679,19 @@
           "</button>"
         : "";
 
+    const badgeClassName = paper.isCompilation
+      ? "session-comp"
+      : paper.attemptType === "MODEL"
+        ? "session-model"
+        : paper.session
+          ? "session-" + paper.session.toLowerCase()
+          : "session-archive";
+    const badgeLabel = paper.isCompilation
+      ? "Compilation"
+      : paper.attemptType === "MODEL"
+        ? "Model"
+        : paper.session || "Exam";
+
     return (
       '<article class="paper-row' +
       (paper.demo ? " is-demo" : "") +
@@ -580,20 +713,15 @@
       "</span>" +
       "</span>" +
       "</button>" +
-      '<span class="session session-' +
-      (paper.session || "archive").toLowerCase() +
+      '<span class="session ' +
+      badgeClassName +
       '">' +
-      (paper.session || (catalogueGroup(paper) === "Multi-year collection" ? "Collection" : "Undated")) +
+      esc(badgeLabel) +
       "</span>" +
       '<div class="paper-actions">' +
       bookmarkButton(paper) +
       downloadAction +
       linkAction +
-      '<button class="icon-action danger" type="button" data-action="delete" data-id="' +
-      esc(paper.id) +
-      '" aria-label="Delete paper" title="Delete">' +
-      icon("trash") +
-      "</button>" +
       "</div>" +
       "</article>"
     );
@@ -601,12 +729,21 @@
 
   function renderPaperGroups(papers, context, compact) {
     if (!papers.length) return "";
+    const dated = papers.filter((p) => !p.isCompilation && p.attemptType !== "MODEL" && p.year);
+    const models = papers.filter((p) => p.attemptType === "MODEL");
+    const compilations = papers.filter((p) => p.isCompilation);
     const groups = new Map();
-    papers.slice().sort(byRecency).forEach((p) => {
-      const key = p.year || catalogueGroup(p);
+    dated.slice().sort(byRecency).forEach((p) => {
+      const key = p.year;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(p);
     });
+    if (models.length) {
+      groups.set("CBME Model & Specimen Papers", models.slice().sort(byRecency));
+    }
+    if (compilations.length) {
+      groups.set("Multi-Year Compilations (2000–2019)", compilations.slice().sort(byRecency));
+    }
     const sections = [];
     groups.forEach((list, year) => {
       sections.push(
@@ -632,12 +769,14 @@
     );
   }
 
-  function subjectCard(subject) {
-    const papers = papersForSubject(subject.id);
+  function subjectCard(subject, bucket) {
+    const papers = papersForSubject(subject.id, bucket);
     const count = papers.length;
+    const pyId = subjectProfYearForBucket(subject, bucket);
+    const pyDef = profYearInfo(pyId);
     return (
       '<a class="subject-card phase-' +
-      subject.phase +
+      esc(pyDef.legacyPhase || subject.phase) +
       '" href="#/subject/' +
       subject.id +
       '">' +
@@ -659,27 +798,57 @@
     );
   }
 
-  function subjectGrid(subjects) {
+  function subjectGrid(subjects, bucket) {
     return (
       '<div class="subject-grid">' +
-      subjects.map(subjectCard).join("") +
+      subjects.map((s) => subjectCard(s, bucket)).join("") +
+      "</div>"
+    );
+  }
+
+  function renderCurriculumTabs(papers, isSubjectContext) {
+    const cbmeCount = papersInBucket(papers, "CBME").length;
+    const oldCount = papersInBucket(papers, "OLD").length;
+    const active = state.curriculumBucket || "CBME";
+    const tabs = [
+      { id: "CBME", label: "CBME", count: cbmeCount },
+      { id: "OLD", label: "OLD (Pre-2019)", count: oldCount },
+    ];
+    return (
+      '<div class="curriculum-tabs' +
+      (isSubjectContext ? " subject-curriculum" : "") +
+      '" role="tablist" aria-label="Curriculum scheme">' +
+      tabs
+        .map(
+          (tab) =>
+            '<button class="curriculum-tab" type="button" role="tab" aria-selected="' +
+            (active === tab.id) +
+            '" data-action="bucket" data-bucket="' +
+            tab.id +
+            '">' +
+            tab.label +
+            '<span class="n">' +
+            tab.count +
+            "</span></button>"
+        )
+        .join("") +
       "</div>"
     );
   }
 
   function renderPhaseTabs() {
-    const tabs = [{ id: "all", label: "All phases" }].concat(
-      PHASES.map((p) => ({ id: p.id, label: p.label }))
+    const tabs = [{ id: "all", label: "All Prof years" }].concat(
+      PROF_YEARS.map((p) => ({ id: p.id, label: p.label }))
     );
     return (
-      '<div class="phase-tabs" role="tablist" aria-label="Filter by phase">' +
+      '<div class="phase-tabs" role="tablist" aria-label="Filter by Prof year">' +
       tabs
         .map((tab) => {
-          const selected = state.phase === tab.id;
+          const selected = state.profYear === tab.id;
           return (
             '<button class="phase-tab" type="button" role="tab" aria-selected="' +
             selected +
-            '" data-action="phase" data-phase="' +
+            '" data-action="prof-year" data-prof-year="' +
             tab.id +
             '">' +
             tab.label +
@@ -696,8 +865,8 @@
       '<section class="paper-intro">' +
       '<div class="hero-copy">' +
       '<p class="intro-label">MUHS / MBBS</p><h1>Previous year papers</h1>' +
-      '<p>Select a subject below to find papers by exam year and session.</p>' +
-      '<small>' + SUBJECTS.length + ' subjects <span>·</span> ' + PHASES.length + ' phases</small></div>' +
+      '<p>Select a Prof year and subject to find papers sorted by exam cycle, attempt and curriculum.</p>' +
+      '<small>' + SUBJECTS.length + ' subjects <span>·</span> ' + PROF_YEARS.length + ' Prof years</small></div>' +
       '<svg class="intro-art" aria-hidden="true" viewBox="0 0 240 155" fill="none"><circle cx="134" cy="82" r="68" fill="#62c8df" opacity=".13"/><g stroke="#62c8df" stroke-width="2"><rect x="88" y="19" width="87" height="116" rx="7" transform="rotate(12 88 19)" fill="#244451"/><rect x="76" y="25" width="87" height="116" rx="7" transform="rotate(-7 76 25)" fill="#14313d"/><path d="M95 51l22-3m-21 16 49-6m-47 19 49-6m-48 19 35-4"/><path d="M152 112h18l5-9 8 20 7-14h20" stroke-width="3" stroke-linejoin="round"/></g></svg>' +
       "</section>"
     );
@@ -707,6 +876,7 @@
   function renderBrowseView() {
     const query = normalize(state.query.trim());
     const total = state.papers.length;
+    const activeBucket = state.curriculumBucket || "CBME";
     const parts = query ? [] : [renderHero()];
 
     if (!state.storageOk) {
@@ -736,7 +906,7 @@
         parts.push(
           '<div class="search-empty"><strong>Nothing matches “' +
             esc(state.query.trim()) +
-            '”</strong><p>Try a subject name, an exam year like 2024, or a session like Winter.</p><button class="btn btn-ghost btn-sm" type="button" data-action="clear-search">Clear search</button></div>'
+            '”</strong><p>Try a subject name, QP code like C1101A, exam year like 2024, or CBME / OLD.</p><button class="btn btn-ghost btn-sm" type="button" data-action="clear-search">Clear search</button></div>'
         );
       } else {
         if (paperHits.length) {
@@ -762,10 +932,27 @@
       return parts.join("");
     }
 
+    const chaiButton =
+      '<button class="btn browse-chai" id="browse-chai" type="button" data-action="open-chai" aria-label="Buy me a chai — minimum 10 rupees">' +
+      '<svg class="browse-chai-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+      '<path class="chai-steam-line l1" d="M9 5c0-1.3 1.1-2.2 1.1-3.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>' +
+      '<path class="chai-steam-line l2" d="M13.5 5c0-1.3 1.1-2.2 1.1-3.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>' +
+      '<path d="M4 9.5h12v5a6 6 0 0 1-6 6 6 6 0 0 1-6-6v-5Z" fill="#d97706" fill-opacity="0.28" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>' +
+      '<path d="M16 11h2a2.4 2.4 0 0 1 0 4.8h-2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>' +
+      '<path d="M4 21h12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>' +
+      "</svg>" +
+      '<span class="browse-chai-label">Buy me a chai</span>' +
+      '<span class="browse-chai-short">Buy a chai</span>' +
+      '<span class="browse-chai-tag">₹10+</span>' +
+      "</button>";
+
     parts.push(
-      '<div class="library-head"><div class="section-title"><h2>Browse subjects</h2></div>' +
+      '<div class="library-head"><div class="section-title browse-title-row"><h2>Browse subjects</h2></div>' +
+        '<div class="browse-controls">' +
+        renderCurriculumTabs(state.papers, false) +
+        chaiButton +
         renderPhaseTabs() +
-        "</div>"
+        "</div></div>"
     );
 
     if (!total) {
@@ -778,32 +965,30 @@
       );
     }
 
-    const phases =
-      state.phase === "all"
-        ? PHASES
-        : PHASES.filter((p) => p.id === state.phase);
+    const yearsToShow =
+      state.profYear === "all"
+        ? PROF_YEARS
+        : PROF_YEARS.filter((p) => p.id === state.profYear);
 
-    phases.forEach((phase) => {
-      const subjects = SUBJECTS.filter((s) => s.phase === phase.id);
+    yearsToShow.forEach((py) => {
+      const subjects = SUBJECTS.filter((s) => subjectProfYearForBucket(s, activeBucket) === py.id);
       if (!subjects.length) return;
       parts.push(
         '<section class="phase-section phase-' +
-          phase.id +
+          esc(py.legacyPhase) +
           '">' +
           '<div class="phase-head"><span class="phase-kicker">' +
-          esc(phase.tag) +
+          esc(py.tag) +
           "</span><h3>" +
-          esc(phase.label) +
-          " · " +
-          esc(phase.name) +
+          esc(py.label) +
           "</h3><p>" +
-          esc(phase.desc) +
+          esc(py.desc) +
           '</p><span class="phase-count">' +
           plural(subjects.length, "subject", "subjects") +
           " · " +
-          plural(phasePaperCount(phase.id), "paper", "papers") +
+          plural(profYearPaperCount(py.id, activeBucket), "paper", "papers") +
           "</span></div>" +
-          subjectGrid(subjects) +
+          subjectGrid(subjects, activeBucket) +
           "</section>"
       );
     });
@@ -815,29 +1000,50 @@
   function renderSubjectView(subjectId) {
     const subject = SUBJECT_BY_ID.get(subjectId);
     if (!subject) return renderNotFound();
-    const phase = subjectPhase(subject);
-    const all = papersForSubject(subject.id);
-    const latest = latestPaper(all);
-    const yearsPresent = Array.from(new Set(all.map((p) => p.year).filter(Boolean))).sort(
+
+    const activeBucket = state.curriculumBucket || "CBME";
+    const allSubjectPapers = papersForSubject(subject.id);
+    const bucketPapers = papersInBucket(allSubjectPapers, activeBucket);
+    const otherBucket = activeBucket === "CBME" ? "OLD" : "CBME";
+    const otherCount = papersInBucket(allSubjectPapers, otherBucket).length;
+
+    const py = profYearInfo(subjectProfYearForBucket(subject, activeBucket));
+    const latest = latestPaper(bucketPapers.length ? bucketPapers : allSubjectPapers);
+    const yearsPresent = Array.from(new Set(bucketPapers.map((p) => p.year).filter(Boolean))).sort(
       (a, b) => b - a
     );
+    const schemesPresent = Array.from(new Set(bucketPapers.map((p) => p.curriculumScheme).filter(Boolean)));
+    const attemptsPresent = Array.from(new Set(bucketPapers.map((p) => p.attemptType).filter(Boolean)));
+
     if (
       state.filters.year !== "all" &&
       yearsPresent.indexOf(Number(state.filters.year)) === -1
     ) {
       state.filters.year = "all";
     }
-    if (state.filters.part === "0" && !all.some((p) => !p.paperNumber)) {
+    if (state.filters.part === "0" && !bucketPapers.some((p) => !p.paperNumber)) {
       state.filters.part = "all";
+    }
+    if (state.filters.scheme !== "all" && schemesPresent.indexOf(state.filters.scheme) === -1) {
+      state.filters.scheme = "all";
+    }
+    if (state.filters.attempt !== "all" && attemptsPresent.indexOf(state.filters.attempt) === -1) {
+      state.filters.attempt = "all";
     }
     const query = normalize(state.query.trim());
 
-    let list = all.filter((p) => paperMatches(p, query));
+    let list = bucketPapers.filter((p) => paperMatches(p, query));
     if (state.filters.part !== "all") {
       list = list.filter((p) => (p.paperNumber || 0) === Number(state.filters.part));
     }
     if (state.filters.session !== "all") {
       list = list.filter((p) => p.session === state.filters.session);
+    }
+    if (state.filters.attempt !== "all") {
+      list = list.filter((p) => p.attemptType === state.filters.attempt);
+    }
+    if (state.filters.scheme !== "all") {
+      list = list.filter((p) => p.curriculumScheme === state.filters.scheme);
     }
     if (state.filters.year !== "all") {
       list = list.filter((p) => p.year === Number(state.filters.year));
@@ -847,8 +1053,16 @@
     const filtersActive =
       state.filters.part !== "all" ||
       state.filters.session !== "all" ||
+      state.filters.attempt !== "all" ||
+      state.filters.scheme !== "all" ||
       state.filters.year !== "all" ||
       !!query;
+
+    const partChoices = subject.multiPaper === false
+      ? [["all", "All parts"], ["0", "Single paper"]]
+      : [["all", "Both papers"], ["1", "Paper I"], ["2", "Paper II"]].concat(
+          bucketPapers.some((p) => !p.paperNumber) ? [["0", "Single paper"]] : []
+        );
 
     const sessionOptions = ["all", "Summer", "Winter"]
       .map(
@@ -859,6 +1073,46 @@
           (state.filters.session === value ? " selected" : "") +
           ">" +
           (value === "all" ? "All sessions" : value) +
+          "</option>"
+      )
+      .join("");
+
+    const attemptOptions = [{ id: "all", label: "All attempts" }]
+      .concat(
+        attemptsPresent.map((a) => ({
+          id: a,
+          label:
+            a === "SUPPLEMENTARY"
+              ? "Supplementary"
+              : a === "MODEL"
+                ? "Model Paper"
+                : a === "COMPILATION"
+                  ? "Compilation"
+                  : "Regular",
+        }))
+      )
+      .map(
+        (opt) =>
+          '<option value="' +
+          opt.id +
+          '"' +
+          (state.filters.attempt === opt.id ? " selected" : "") +
+          ">" +
+          esc(opt.label) +
+          "</option>"
+      )
+      .join("");
+
+    const schemeOptions = [{ id: "all", label: "All schemes" }]
+      .concat(schemesPresent.map((sc) => ({ id: sc, label: T.formatSchemeBadge(sc) })))
+      .map(
+        (opt) =>
+          '<option value="' +
+          opt.id +
+          '"' +
+          (state.filters.scheme === opt.id ? " selected" : "") +
+          ">" +
+          esc(opt.label) +
           "</option>"
       )
       .join("");
@@ -881,17 +1135,17 @@
     const metaChips =
       '<span class="meta-chip">' +
       icon("layers") +
-      esc(phase ? phase.label : "") +
+      esc(py.label) +
       "</span>" +
       '<span class="meta-chip">' +
       icon("file") +
-      plural(all.length, "paper", "papers") +
+      plural(bucketPapers.length, activeBucket + " paper", activeBucket + " papers") +
       "</span>" +
       (latest && latest.year
         ? '<span class="meta-chip">' +
           icon("calendar") +
           "Latest " +
-          latest.session +
+          esc(latest.session) +
           " " +
           latest.year +
           "</span>"
@@ -900,12 +1154,12 @@
     const parts = [
       '<div class="subject-hero">' +
         '<nav class="crumbs" aria-label="Breadcrumb"><a href="#/">Browse</a><span class="sep">/</span><span>' +
-        esc(phase ? phase.label : "") +
+        esc(py.label) +
         '</span><span class="sep">/</span><span aria-current="page">' +
         esc(subject.name) +
         "</span></nav>" +
         '<div class="subject-head phase-' +
-        subject.phase +
+        esc(py.legacyPhase || subject.phase) +
         '">' +
         '<span class="monogram">' +
         esc(subject.code) +
@@ -923,6 +1177,7 @@
         icon("plus") +
         " Add paper</button></div>" +
         "</div>" +
+        renderCurriculumTabs(allSubjectPapers, true) +
         "</div>",
     ];
 
@@ -930,15 +1185,29 @@
       parts.push(
         '<div class="filters"><span class="filters-label">Filter</span>' +
           '<div class="select"><select id="filter-part" aria-label="Filter by paper number">' +
-          [["all","Both papers"],["1","Paper 1"],["2","Paper 2"]]
-            .concat(all.some(p => !p.paperNumber) ? [["0","Number not set"]] : [])
-            .map(([v,label]) => '<option value="' + v + '"' + (state.filters.part === v ? " selected" : "") + ">" + label + "</option>").join("") +
+          partChoices
+            .map(([v, label]) => '<option value="' + v + '"' + (state.filters.part === v ? " selected" : "") + ">" + label + "</option>")
+            .join("") +
           "</select>" + icon("chevron-down") + "</div>" +
           '<div class="select"><select id="filter-session" aria-label="Filter by exam session">' +
           sessionOptions +
           "</select>" +
           icon("chevron-down") +
           "</div>" +
+          (attemptsPresent.length > 1
+            ? '<div class="select"><select id="filter-attempt" aria-label="Filter by attempt type">' +
+              attemptOptions +
+              "</select>" +
+              icon("chevron-down") +
+              "</div>"
+            : "") +
+          (schemesPresent.length > 1
+            ? '<div class="select"><select id="filter-scheme" aria-label="Filter by curriculum scheme">' +
+              schemeOptions +
+              "</select>" +
+              icon("chevron-down") +
+              "</div>"
+            : "") +
           (yearsPresent.length
             ? '<div class="select"><select id="filter-year" aria-label="Filter by exam year">' +
               yearOptions +
@@ -956,28 +1225,47 @@
       );
     }
 
-    if (!all.length) {
+    if (!bucketPapers.length) {
       parts.push(
         '<div class="empty">' +
           emptyArt() +
-          "<h3>No papers for " +
+          "<h3>No " +
+          esc(activeBucket) +
+          " papers for " +
           esc(subject.name) +
-          " yet</h3><p>Add the first one — a PDF from your college library, a senior's folder or a university release. It stays in your browser.</p>" +
-          '<div class="empty-actions"><button class="btn btn-primary" type="button" data-action="open-add" data-subject="' +
+          " yet</h3><p>" +
+          (otherCount
+            ? esc(plural(otherCount, otherBucket + " paper", otherBucket + " papers")) +
+              " available under the " +
+              esc(otherBucket) +
+              " tab."
+            : "Add the first one — a PDF from your college library, a senior's folder or a university release. It stays in your browser.") +
+          "</p>" +
+          '<div class="empty-actions">' +
+          (otherCount
+            ? '<button class="btn btn-primary" type="button" data-action="bucket" data-bucket="' +
+              otherBucket +
+              '">View ' +
+              esc(otherBucket) +
+              " papers</button>"
+            : "") +
+          '<button class="btn ' +
+          (otherCount ? "btn-ghost" : "btn-primary") +
+          '" type="button" data-action="open-add" data-subject="' +
           subject.id +
           '">' +
           icon("plus") +
           " Add a paper</button>" +
-          (state.papers.some((p) => p.demo)
-            ? ""
-            : '<button class="btn btn-ghost" type="button" data-action="load-demo">Load sample library</button>') +
+          (!allSubjectPapers.length && !state.papers.some((p) => p.demo)
+            ? '<button class="btn btn-ghost" type="button" data-action="load-demo">Load sample library</button>'
+            : "") +
           "</div>" +
           "</div>"
       );
     } else if (!list.length) {
       parts.push(
-        '<div class="empty"><h3>No papers match these filters</h3><p>Try a different paper number, session or year, or clear the filters to see all ' +
-          plural(all.length, "paper", "papers") +
+        '<div class="empty"><h3>No papers match these filters</h3><p>Try a different paper number, session, attempt or year, or clear the filters to see all ' +
+          plural(bucketPapers.length, activeBucket + " paper", activeBucket + " papers") +
           ' for this subject.</p><div class="empty-actions"><button class="btn btn-primary" type="button" data-action="open-add" data-subject="' +
           subject.id +
           '">' +
@@ -1043,18 +1331,18 @@
     return `<div class="about">
       <p class="eyebrow">About this project</p>
       <h1>A quiet home for past papers.</h1>
-      <p class="lede">MUHS Papers is a small, local-first library for MBBS previous year question papers. It keeps the university's exam structure — four phases, Summer and Winter sessions — as the backbone, so a paper is always one search away.</p>
+      <p class="lede">MUHS Papers is a small, local-first library for MBBS previous year question papers. It keeps the university's exam structure — four Prof years, CBME and OLD curriculum schemes, Summer and Winter sessions — as the backbone, so a paper is always one search away.</p>
 
       <div class="info-grid">
         <div class="info-tile">${icon("shield")}<h3>Local-first</h3><p>Files are stored in your browser's IndexedDB. Nothing is uploaded to a server.</p></div>
-        <div class="info-tile">${icon("calendar")}<h3>Session-aware</h3><p>Papers are filed by phase, subject, exam session and year — not by a messy folder tree.</p></div>
+        <div class="info-tile">${icon("calendar")}<h3>Session-aware</h3><p>Papers are filed by Prof year, curriculum scheme, exam session and attempt — never trusted blindly from filenames.</p></div>
         <div class="info-tile">${icon("folder")}<h3>Backup &amp; share</h3><p>Export your library as one JSON file, then import it on another device or send it to a classmate.</p></div>
       </div>
 
       <div class="about-card">
         <h2>How papers are organised</h2>
-        <p>The catalogue follows the MUHS MBBS (CBME) phases: <strong>Phase I</strong> for anatomy, physiology and biochemistry; <strong>Phase II</strong> for pathology, pharmacology, microbiology and forensic medicine; <strong>Phase III Part I</strong> for ENT, ophthalmology and community medicine; and <strong>Phase III Part II</strong> for medicine, surgery, paediatrics, obstetrics &amp; gynaecology and the allied specialties.</p>
-        <p>Each paper is tagged with its exam session — <strong>Summer</strong> (April–May) or <strong>Winter</strong> (October–December) — and its exam year, so you can revise by the papers most likely to repeat.</p>
+        <p>The catalogue follows the MUHS MBBS Professional Year taxonomy: <strong>First MBBS</strong> (Anatomy, Physiology, Biochemistry); <strong>Second MBBS</strong> (Pathology, Pharmacology, Microbiology, plus OLD-scheme Forensic Medicine); <strong>Third MBBS · Part I</strong> (Community Medicine, CBME Forensic Medicine, plus OLD/CBME-2019 ENT &amp; Ophthalmology); and <strong>Final MBBS · Part II</strong> (General Medicine, General Surgery, Paediatrics, Obstetrics &amp; Gynaecology, plus CBME 2021+ ENT &amp; Ophthalmology).</p>
+        <p><strong>CBME</strong> schemes appear first with <strong>OLD (Pre-2019)</strong> separated cleanly, and each card shows its official MUHS cycle (<strong>Summer</strong> / <strong>Winter</strong>), attempt (<strong>Regular</strong> / <strong>Suppl.</strong>), and scheme badge while keeping scheduling waves (<strong>Phase I–VI</strong>) in secondary metadata.</p>
       </div>
 
       <div class="about-card">
@@ -1214,6 +1502,15 @@
   function closeModal(immediate) {
     const root = document.getElementById("modal-root");
     if (!root || !root.innerHTML) return;
+    if (!immediate && root.querySelector(".chai-modal")) {
+      writeStorage(CHAI_DISMISS_KEY, "1");
+    }
+    if (state.scanAbort) {
+      state.scanAbort.abort();
+      state.scanAbort = null;
+    }
+    state.scanInFlight = false;
+    state.scanResult = null;
     root.innerHTML = "";
     document.body.classList.remove("modal-open");
     if (state.currentObjectUrl) {
@@ -1266,10 +1563,111 @@
     }
   }
 
+  /* ---------- Buy me a chai popup --------------------------------------- */
+  let chaiTimerId = null;
+
+  const CHAI_CUP_ART =
+    '<svg class="chai-art" viewBox="0 0 88 88" width="64" height="64" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs>' +
+    '<linearGradient id="chaiTea" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0%" stop-color="#e59a4c"/><stop offset="100%" stop-color="#a8531b"/>' +
+    '</linearGradient>' +
+    '<linearGradient id="chaiCup" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#fffaf2"/><stop offset="100%" stop-color="#f2dfd0"/>' +
+    '</linearGradient>' +
+    '</defs>' +
+    '<path class="chai-steam s1" d="M31 24c-3-4-2-9 2-13s2-8 0-10" fill="none" stroke="#d9822b" stroke-width="2.6" stroke-linecap="round"/>' +
+    '<path class="chai-steam s2" d="M44 22c-3-4-2-10 2-14s2-7 0-9" fill="none" stroke="#c86b20" stroke-width="2.8" stroke-linecap="round"/>' +
+    '<path class="chai-steam s3" d="M57 24c-3-4-2-9 2-13s2-8 0-10" fill="none" stroke="#d9822b" stroke-width="2.6" stroke-linecap="round"/>' +
+    '<ellipse cx="44" cy="72" rx="30" ry="6.5" fill="#e7d6c5" stroke="#b97745" stroke-width="2"/>' +
+    '<path d="M62 39h6.5a7.5 7.5 0 0 1 0 15H61" fill="none" stroke="#b97745" stroke-width="4" stroke-linecap="round"/>' +
+    '<path d="M22 33h42v17a21 21 0 0 1-21 21 21 21 0 0 1-21-21V33Z" fill="url(#chaiCup)" stroke="#b97745" stroke-width="2.4"/>' +
+    '<ellipse cx="43" cy="33" rx="21" ry="6" fill="#fffdf9" stroke="#b97745" stroke-width="2.2"/>' +
+    '<ellipse cx="43" cy="33.5" rx="17" ry="4.1" fill="url(#chaiTea)"/>' +
+    '<path d="M35 33.2c4-1.3 12-1.3 16 0" fill="none" stroke="#ffe7c2" stroke-width="1.3" stroke-linecap="round" opacity="0.8"/>' +
+    '<circle cx="43" cy="51" r="4" fill="#d9822b" opacity="0.22"/>' +
+    '</svg>';
+
+  const CHAI_CUP_MINI =
+    '<svg class="chai-mini-svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M9 4c0-1.2 1-2 1-3M14 4c0-1.2 1-2 1-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+    '<path d="M4 9h12v5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V9Z" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' +
+    '<path d="M16 10.5h2a2.5 2.5 0 0 1 0 5h-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+    '<path d="M4 21h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
+    '</svg>';
+
+  function openChaiModal() {
+    const upiButton = CHAI_CONFIG.upiId
+      ? '<button class="chai-upi-btn" type="button" data-action="copy-upi">UPI ID: ' +
+        esc(CHAI_CONFIG.upiId) +
+        "</button>"
+      : "";
+
+    const html =
+      '<div class="modal-backdrop" data-close-modal>' +
+      '<div class="modal chai-modal" id="chai-dialog" role="dialog" aria-modal="true" aria-labelledby="chai-title">' +
+      '<div class="modal-head chai-head">' +
+      '<div class="chai-head-main">' +
+      '<div class="chai-art-badge">' +
+      CHAI_CUP_ART +
+      "</div>" +
+      '<div><h2 id="chai-title">' +
+      esc(CHAI_CONFIG.title) +
+      '</h2><p class="chai-subtitle">' +
+      esc(CHAI_CONFIG.subtitle) +
+      "</p></div></div>" +
+      '<button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close">' +
+      icon("close") +
+      "</button></div>" +
+      '<div class="modal-body chai-body">' +
+      '<div class="chai-min-pill" id="chai-min-pill">' +
+      CHAI_CUP_MINI +
+      "<span>" +
+      esc(CHAI_CONFIG.minBadge) +
+      "</span></div>" +
+      '<p class="chai-desc" id="chai-description">' +
+      esc(CHAI_CONFIG.description) +
+      "</p>" +
+      '<div class="chai-qr-card">' +
+      '<img class="chai-qr-img" id="chai-qr-img" src="' +
+      esc(CHAI_CONFIG.qrImageSrc) +
+      '" alt="UPI QR code for ' +
+      esc(CHAI_CONFIG.payeeName) +
+      '" width="220" height="220">' +
+      '<strong class="chai-payee-name" id="chai-payee-name">' +
+      esc(CHAI_CONFIG.payeeName) +
+      "</strong>" +
+      upiButton +
+      '<small class="chai-note">' +
+      esc(CHAI_CONFIG.note) +
+      "</small></div></div>" +
+      '<div class="modal-foot">' +
+      '<button class="btn btn-quiet" type="button" data-close-modal>Maybe later</button>' +
+      '<button class="btn btn-primary" type="button" data-action="chai-done" data-autofocus>Sent a chai!</button>' +
+      "</div></div></div>";
+
+    openModal(html);
+  }
+
+  function scheduleChaiPopup() {
+    if (chaiTimerId || readString(CHAI_DISMISS_KEY) === "1") return;
+    const tryShow = () => {
+      chaiTimerId = null;
+      if (readString(CHAI_DISMISS_KEY) === "1") return;
+      if (document.body.classList.contains("modal-open") || document.visibilityState === "hidden") {
+        chaiTimerId = setTimeout(tryShow, 3000);
+        return;
+      }
+      openChaiModal();
+    };
+    chaiTimerId = setTimeout(tryShow, CHAI_DELAY_MS);
+  }
+
   /* ---------- Add-paper modal ------------------------------------------- */
   function subjectSelectOptions(selectedId) {
-    return PHASES.map((phase) => {
-      const options = SUBJECTS.filter((s) => s.phase === phase.id)
+    const activeBucket = state.curriculumBucket || "CBME";
+    return PROF_YEARS.map((py) => {
+      const options = SUBJECTS.filter((s) => subjectProfYearForBucket(s, activeBucket) === py.id)
         .map(
           (s) =>
             '<option value="' +
@@ -1283,7 +1681,7 @@
         .join("");
       return (
         '<optgroup label="' +
-        esc(phase.label + " — " + phase.name) +
+        esc(py.label + " — " + py.name) +
         '">' +
         options +
         "</optgroup>"
@@ -1304,6 +1702,12 @@
     const now = new Date();
     const defaultSession = now.getMonth() >= 6 ? "Winter" : "Summer";
     state.addFile = null;
+    if (state.scanAbort) {
+      state.scanAbort.abort();
+      state.scanAbort = null;
+    }
+    state.scanInFlight = false;
+    state.scanResult = null;
 
     const yearOptions = YEARS.map(
       (y) =>
@@ -1319,31 +1723,11 @@
     const html =
       '<div class="modal-backdrop" data-close-modal>' +
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-title">' +
-      '<div class="modal-head"><div><h2 id="add-title">Add a paper</h2><p>Attach a PDF or link. It stays in this browser.</p></div>' +
+      '<div class="modal-head"><div><h2 id="add-title">Add a paper</h2><p>Drop a PDF or image to auto-scan subject, year, paper &amp; duplicates.</p></div>' +
       '<button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close">' +
       icon("close") +
       "</button></div>" +
       '<form id="add-form" novalidate><div class="modal-body"><div class="form-grid">' +
-      '<div class="field"><label for="f-subject">Subject</label><select class="input" id="f-subject" name="subject" data-autofocus>' +
-      subjectSelectOptions(selected) +
-      "</select></div>" +
-      '<div class="field"><span class="label">Paper number</span><div class="seg" role="radiogroup" aria-label="Paper number">' +
-      [1,2].map(n => '<label><input type="radio" name="paperNumber" value="' + n + '"' +
-        (n === (state.filters.part === "2" ? 2 : 1) ? " checked" : "") + '><span>Paper ' + n + '</span></label>').join("") + '</div></div>' +
-      '<div class="form-row">' +
-      '<div class="field"><span class="label">Exam session</span><div class="seg" role="radiogroup" aria-label="Exam session">' +
-      '<label><input type="radio" name="session" value="Summer"' +
-      (defaultSession === "Summer" ? " checked" : "") +
-      "><span>Summer</span></label>" +
-      '<label><input type="radio" name="session" value="Winter"' +
-      (defaultSession === "Winter" ? " checked" : "") +
-      "><span>Winter</span></label></div></div>" +
-      '<div class="field"><label for="f-year">Exam year</label><select class="input" id="f-year" name="year">' +
-      yearOptions +
-      "</select></div></div>" +
-      '<div class="field"><label for="f-title">Title <span class="optional">optional</span></label>' +
-      '<input class="input" id="f-title" name="title" maxlength="180" placeholder="e.g. General Medicine — Paper I" autocomplete="off">' +
-      '<span class="hint">Leave blank and we will name it for you.</span></div>' +
       '<div class="field"><span class="label">Source</span><div class="seg" role="radiogroup" aria-label="Paper source">' +
       '<label><input type="radio" name="source" value="file" checked><span>Upload file</span></label>' +
       '<label><input type="radio" name="source" value="link"><span>Paste link</span></label></div></div>' +
@@ -1352,11 +1736,72 @@
       '<span class="dz-icon">' +
       icon("upload") +
       "</span><strong>Drop a PDF here, or click to browse</strong>" +
-      "<small>PDF, JPG, PNG or WEBP · up to 20 MB</small></label>" +
-      '<div id="file-preview"></div></div>' +
+      "<small>PDF, JPG, PNG or WEBP · up to 20 MB · auto-scans content</small></label>" +
+      '<div id="file-preview"></div>' +
+      '<div class="scan-status" id="scan-status" role="status" aria-live="polite" hidden></div></div>' +
       '<div class="field" id="source-link" hidden><label for="f-url">Paper link</label>' +
       '<input class="input" type="url" id="f-url" name="url" placeholder="https://…" inputmode="url" autocomplete="off">' +
       '<span class="hint">Google Drive, college website or any direct PDF link.</span></div>' +
+      '<div class="field"><label for="f-subject">Subject</label><select class="input" id="f-subject" name="subject" data-autofocus>' +
+      subjectSelectOptions(selected) +
+      "</select></div>" +
+      '<div class="field"><span class="label">Paper number</span><div class="seg" role="radiogroup" aria-label="Paper number">' +
+      [
+        [1, "Paper 1"],
+        [2, "Paper 2"],
+        ["", "Single paper"],
+      ]
+        .map(([v, lbl]) => {
+          const isSingleSubj = SUBJECT_BY_ID.get(selected)?.multiPaper === false;
+          const checked =
+            v === ""
+              ? isSingleSubj
+              : !isSingleSubj && Number(v) === (state.filters.part === "2" ? 2 : 1);
+          return '<label><input type="radio" name="paperNumber" value="' + v + '"' + (checked ? " checked" : "") + "><span>" + lbl + "</span></label>";
+        })
+        .join("") +
+      '</div></div>' +
+      '<div class="form-row">' +
+      '<div class="field"><span class="label">Exam session</span><div class="seg" role="radiogroup" aria-label="Exam session">' +
+      '<label><input type="radio" name="session" value="Summer"' +
+      (defaultSession === "Summer" ? " checked" : "") +
+      "><span>Summer</span></label>" +
+      '<label><input type="radio" name="session" value="Winter"' +
+      (defaultSession === "Winter" ? " checked" : "") +
+      '><span>Winter</span></label></div></div>' +
+      '<div class="field"><label for="f-year">Exam year</label><select class="input" id="f-year" name="year">' +
+      yearOptions +
+      "</select></div></div>" +
+      '<div class="form-row">' +
+      '<div class="field"><label for="f-scheme">Curriculum scheme</label><select class="input" id="f-scheme" name="curriculumScheme">' +
+      [
+        ["CBME_2024", "CBME 2024"],
+        ["CBME_2023", "CBME 2023"],
+        ["CBME_2021_SPLIT", "CBME 2021"],
+        ["CBME_2019", "CBME 2019"],
+        ["CBME_UNIFIED_2026", "CBME Unified 2026"],
+        ["OLD", "OLD (Pre-2019)"],
+      ]
+        .map(([val, lbl]) => '<option value="' + val + '"' + (val === "CBME_2023" ? " selected" : "") + ">" + lbl + "</option>")
+        .join("") +
+      "</select></div>" +
+      '<div class="field"><label for="f-attempt">Attempt type</label><select class="input" id="f-attempt" name="attemptType">' +
+      '<option value="REGULAR" selected>Regular</option>' +
+      '<option value="SUPPLEMENTARY">Supplementary</option>' +
+      '<option value="MODEL">Model / Specimen</option>' +
+      "</select></div></div>" +
+      '<div class="form-row">' +
+      '<div class="field"><label for="f-qpcode">QP Code <span class="optional">optional</span></label>' +
+      '<input class="input" id="f-qpcode" name="qpCode" maxlength="32" placeholder="e.g. C1101A" autocomplete="off"></div>' +
+      '<div class="field"><label for="f-wave">Exam wave <span class="optional">optional</span></label><select class="input" id="f-wave" name="examPhase">' +
+      '<option value="">Not specified</option>' +
+      [1, 2, 3, 4, 5, 6]
+        .map((n) => '<option value="' + n + '">Phase ' + ROMAN_PHASES[n] + "</option>")
+        .join("") +
+      "</select></div></div>" +
+      '<div class="field"><label for="f-title">Title <span class="optional">optional</span></label>' +
+      '<input class="input" id="f-title" name="title" maxlength="180" placeholder="Auto-filled from PDF header or generated" autocomplete="off">' +
+      '<span class="hint">Derived from printed MUHS header (never filenames).</span></div>' +
       '<p class="form-error" id="add-error" role="alert" hidden>' +
       icon("alert") +
       "<span></span></p>" +
@@ -1383,6 +1828,27 @@
     if (span) span.textContent = message;
   }
 
+  function setScanStatus(mode, message) {
+    const box = document.getElementById("scan-status");
+    if (!box) return;
+    if (!message) {
+      box.hidden = true;
+      box.className = "scan-status";
+      box.textContent = "";
+      return;
+    }
+    box.hidden = false;
+    box.className = "scan-status scan-" + (mode || "scanning");
+    box.textContent = message;
+  }
+
+  function setAddSubmitState(disabled, label) {
+    const submit = document.getElementById("add-submit");
+    if (!submit) return;
+    submit.disabled = Boolean(disabled);
+    submit.textContent = label || "Add paper";
+  }
+
   function fileTypeOf(file) {
     if (file.type) return file.type;
     const ext = String(file.name || "").split(".").pop().toLowerCase();
@@ -1393,6 +1859,247 @@
     return "";
   }
 
+  function buildCandidateFromForm(form, idOverride) {
+    const data = new FormData(form);
+    const subjectId = String(data.get("subject") || "");
+    const subject = SUBJECT_BY_ID.get(subjectId);
+    const session = String(data.get("session") || "");
+    const rawPart = String(data.get("paperNumber") || "");
+    const paperNumber = rawPart === "1" || rawPart === "2" ? Number(rawPart) : null;
+    const year = parseInt(data.get("year"), 10);
+    const title = String(data.get("title") || "").trim().slice(0, 180);
+    const rawQpCode = String(data.get("qpCode") || "").trim().toUpperCase().slice(0, 32) || null;
+    const curriculumScheme = String(data.get("curriculumScheme") || "CBME_2023");
+    const attemptRaw = String(data.get("attemptType") || "REGULAR");
+    const attemptType =
+      attemptRaw === "SUPPLEMENTARY"
+        ? "SUPPLEMENTARY"
+        : attemptRaw === "MODEL"
+          ? "MODEL"
+          : "REGULAR";
+    const waveRaw = String(data.get("examPhase") || "");
+    const examPhase = waveRaw ? Number(waveRaw) : null;
+    const source = String(data.get("source") || "file");
+    const rawUrl = String(data.get("url") || "").trim();
+    const scan = source === "file" ? state.scanResult : null;
+    const file = source === "file" ? state.addFile : null;
+    const scannedProfYear =
+      scan && scan.parsed && scan.parsed.subjectId === subjectId ? scan.parsed.profYear : null;
+    const profYear = T.applySubjectYearShift(
+      T.SUBJECT_BY_ID.get(subjectId),
+      scannedProfYear || (subject ? subject.profYear : null),
+      curriculumScheme
+    );
+
+    return {
+      source,
+      rawUrl,
+      subject,
+      candidate: normalizePaper({
+        id: idOverride || "candidate",
+        subjectId,
+        subject: subject ? subject.name : "",
+        profYear,
+        qpCode: rawQpCode,
+        curriculumScheme,
+        attemptType,
+        examPhase,
+        paperNumber,
+        paperSection: scan && scan.paperSection ? scan.paperSection : "COMBINED",
+        session,
+        year: Number.isFinite(year) ? year : null,
+        title,
+        fileSha256: scan && scan.fileSha256 ? scan.fileSha256 : null,
+        rawHeaderText: scan && scan.rawHeaderText ? scan.rawHeaderText : null,
+        inferredCohortHint: file && file.name ? file.name : null,
+        kind: file ? "file" : "link",
+        addedAt: new Date().toISOString(),
+        demo: false,
+      }),
+    };
+  }
+
+  function findDuplicateInState(candidate) {
+    if (window.MUHS_PDF_SCANNER && typeof window.MUHS_PDF_SCANNER.findDuplicatePaper === "function") {
+      return window.MUHS_PDF_SCANNER.findDuplicatePaper(candidate, state.papers);
+    }
+    const hit = state.papers.find((existing) => T.isSamePaperRecord(existing, candidate));
+    return hit ? { existing: hit, reason: "taxonomy" } : null;
+  }
+
+  function refreshAddDuplicateCheck() {
+    const form = document.getElementById("add-form");
+    if (!form || state.scanInFlight) return null;
+    const built = buildCandidateFromForm(form);
+    if (built.source !== "file" || !state.addFile) {
+      const dupLink = built.source === "link" && built.candidate.subjectId && built.candidate.examYear
+        ? findDuplicateInState(built.candidate)
+        : null;
+      if (dupLink) {
+        const dupLabel = defaultTitle(dupLink.existing) + " (" + examLabel(dupLink.existing) + ")";
+        showAddError("Duplicate paper rejected: \"" + dupLabel + "\" already exists in the database.");
+        setAddSubmitState(true, "Duplicate rejected");
+        return dupLink;
+      }
+      showAddError("");
+      setAddSubmitState(false, "Add paper");
+      return null;
+    }
+
+    const dup = findDuplicateInState(built.candidate);
+    if (dup) {
+      const dupLabel = defaultTitle(dup.existing) + " (" + examLabel(dup.existing) + ")";
+      const prefix = dup.reason === "exact-file"
+        ? "Duplicate PDF rejected (identical file already stored): "
+        : "Duplicate paper rejected (already in database): ";
+      setScanStatus("duplicate", prefix + dupLabel);
+      showAddError(prefix + dupLabel);
+      setAddSubmitState(true, "Duplicate rejected");
+      return dup;
+    }
+
+    showAddError("");
+    setAddSubmitState(false, "Add paper");
+    return null;
+  }
+
+  function ensureSelectOption(select, value, label) {
+    if (!select) return;
+    const strVal = String(value);
+    const hasOpt = Array.from(select.options).some((opt) => opt.value === strVal);
+    if (!hasOpt) {
+      const opt = document.createElement("option");
+      opt.value = strVal;
+      opt.textContent = label || strVal;
+      select.appendChild(opt);
+    }
+    select.value = strVal;
+  }
+
+  function applyScanResultToForm(scanRes) {
+    const form = document.getElementById("add-form");
+    if (!form || !scanRes || !scanRes.parsed) return;
+    const p = scanRes.parsed;
+
+    const subjSel = document.getElementById("f-subject");
+    if (subjSel && p.subjectId && SUBJECT_BY_ID.has(p.subjectId)) {
+      subjSel.value = p.subjectId;
+    }
+    const activeSubjId = subjSel ? subjSel.value : p.subjectId;
+    const isSingle = SUBJECT_BY_ID.get(activeSubjId)?.multiPaper === false;
+    const desiredPart = isSingle
+      ? ""
+      : p.paperNumber === 1 || p.paperNumber === 2
+        ? String(p.paperNumber)
+        : null;
+    if (desiredPart !== null) {
+      const radio = form.querySelector('input[name="paperNumber"][value="' + desiredPart + '"]');
+      if (radio) radio.checked = true;
+    }
+
+    if (p.examSession === "SUMMER" || p.examSession === "WINTER") {
+      const sessVal = p.examSession === "SUMMER" ? "Summer" : "Winter";
+      const sessRadio = form.querySelector('input[name="session"][value="' + sessVal + '"]');
+      if (sessRadio) sessRadio.checked = true;
+    }
+
+    const yearSel = document.getElementById("f-year");
+    if (yearSel && p.examYear) {
+      ensureSelectOption(yearSel, p.examYear, String(p.examYear));
+    }
+
+    const schemeSel = document.getElementById("f-scheme");
+    if (schemeSel && p.curriculumScheme) {
+      ensureSelectOption(schemeSel, p.curriculumScheme, T.formatSchemeBadge(p.curriculumScheme));
+    }
+
+    const attemptSel = document.getElementById("f-attempt");
+    if (attemptSel && p.attemptType) {
+      attemptSel.value =
+        p.attemptType === "SUPPLEMENTARY"
+          ? "SUPPLEMENTARY"
+          : p.attemptType === "MODEL"
+            ? "MODEL"
+            : "REGULAR";
+    }
+
+    const qpInput = document.getElementById("f-qpcode");
+    if (qpInput && p.qpCode) {
+      qpInput.value = p.qpCode;
+    }
+
+    const waveSel = document.getElementById("f-wave");
+    if (waveSel) {
+      waveSel.value = p.examPhase >= 1 && p.examPhase <= 6 ? String(p.examPhase) : "";
+    }
+
+    const titleInput = document.getElementById("f-title");
+    if (titleInput && scanRes.suggestedTitle) {
+      titleInput.value = scanRes.suggestedTitle;
+    }
+  }
+
+  async function runAddFileScan(file) {
+    if (!window.MUHS_PDF_SCANNER || typeof window.MUHS_PDF_SCANNER.scanPaperFile !== "function") {
+      return;
+    }
+    if (state.scanAbort) state.scanAbort.abort();
+    const ctrl = new AbortController();
+    state.scanAbort = ctrl;
+    state.scanInFlight = true;
+    state.scanResult = null;
+    setAddSubmitState(true, "Scanning…");
+    setScanStatus("scanning", "Preparing PDF scanner…");
+
+    try {
+      const res = await window.MUHS_PDF_SCANNER.scanPaperFile(file, {
+        signal: ctrl.signal,
+        onProgress: (info) => {
+          if (ctrl.signal.aborted) return;
+          setScanStatus("scanning", (info && info.message) || "Scanning paper…");
+        },
+      });
+      if (ctrl.signal.aborted || state.addFile !== file || !res) return;
+
+      state.scanInFlight = false;
+      state.scanResult = res;
+      applyScanResultToForm(res);
+
+      const dup = refreshAddDuplicateCheck();
+      if (dup) return;
+
+      const p = res.parsed || {};
+      const parts = [];
+      if (p.subject) parts.push(p.subject);
+      if (p.paperNumber) parts.push("Paper " + (p.paperNumber === 1 ? "I" : "II"));
+      if (p.examSession && p.examYear) parts.push(T.formatSessionLabel(p.examSession) + " " + p.examYear);
+      if (p.curriculumScheme) parts.push(T.formatSchemeBadge(p.curriculumScheme));
+      if (p.examPhase) parts.push("Phase " + (ROMAN_PHASES[p.examPhase] || p.examPhase));
+      if (p.qpCode) parts.push("QP " + p.qpCode);
+
+      if (p.subjectId && p.examSession && p.examYear) {
+        setScanStatus(
+          "detected",
+          "Auto-detected" + (res.ocrUsed ? " via OCR" : "") + ": " + parts.join(" · ") + " — ready to add."
+        );
+      } else {
+        setScanStatus(
+          "warning",
+          "Scan complete (" +
+            (res.ocrUsed ? "OCR" : "text") +
+            (parts.length ? ": " + parts.join(" · ") : "") +
+            "). Verify any missing fields before adding."
+        );
+      }
+    } catch (err) {
+      if (ctrl.signal.aborted || state.addFile !== file) return;
+      state.scanInFlight = false;
+      state.scanResult = null;
+      setScanStatus("warning", "Automatic scan could not read text from this file — verify fields manually.");
+      setAddSubmitState(false, "Add paper");
+    }
+  }
+
   function acceptAddFile(file) {
     if (!file) return;
     const type = fileTypeOf(file);
@@ -1400,6 +2107,7 @@
       showAddError("That file type is not supported. Choose a PDF, JPG, PNG or WEBP.");
       state.addFile = null;
       updateAddFilePreview();
+      setScanStatus("", "");
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
@@ -1409,6 +2117,7 @@
     state.addFile = file;
     showAddError("");
     updateAddFilePreview();
+    runAddFileScan(file);
   }
 
   function updateAddFilePreview() {
@@ -1436,11 +2145,19 @@
   }
 
   function clearAddFile() {
+    if (state.scanAbort) {
+      state.scanAbort.abort();
+      state.scanAbort = null;
+    }
+    state.scanInFlight = false;
+    state.scanResult = null;
     state.addFile = null;
     const input = document.getElementById("f-file");
     if (input) input.value = "";
     updateAddFilePreview();
+    setScanStatus("", "");
     showAddError("");
+    setAddSubmitState(false, "Add paper");
   }
 
   function safeUrl(value) {
@@ -1461,6 +2178,32 @@
     if (!form) return;
     const fileInput = document.getElementById("f-file");
     const dropzone = document.getElementById("dropzone");
+    const qpInput = document.getElementById("f-qpcode");
+
+    if (qpInput && window.MUHS_SUBJECT_CODES) {
+      qpInput.addEventListener("change", () => {
+        const hit = window.MUHS_SUBJECT_CODES.lookupQpCode(qpInput.value);
+        if (hit) {
+          qpInput.value = hit.qpCode;
+          const subjSel = document.getElementById("f-subject");
+          if (subjSel && hit.subjectId && SUBJECT_BY_ID.has(hit.subjectId)) subjSel.value = hit.subjectId;
+          const schSel = document.getElementById("f-scheme");
+          if (schSel && hit.curriculumScheme) ensureSelectOption(schSel, hit.curriculumScheme, T.formatSchemeBadge(hit.curriculumScheme));
+          const partVal = hit.paperNumber === 1 || hit.paperNumber === 2 ? String(hit.paperNumber) : "";
+          const partRadio = form.querySelector('input[name="paperNumber"][value="' + partVal + '"]');
+          if (partRadio) partRadio.checked = true;
+        }
+        refreshAddDuplicateCheck();
+      });
+    }
+
+    ["#f-subject", "#f-year", "#f-scheme", "#f-attempt", "#f-wave"].forEach((sel) => {
+      const el = form.querySelector(sel);
+      if (el) el.addEventListener("change", () => refreshAddDuplicateCheck());
+    });
+    form.querySelectorAll('input[name="paperNumber"], input[name="session"]').forEach((radio) => {
+      radio.addEventListener("change", () => refreshAddDuplicateCheck());
+    });
 
     form.querySelectorAll('input[name="source"]').forEach((radio) => {
       radio.addEventListener("change", () => {
@@ -1468,7 +2211,11 @@
           form.querySelector('input[name="source"]:checked').value === "file";
         document.getElementById("source-file").hidden = !isFile;
         document.getElementById("source-link").hidden = isFile;
-        showAddError("");
+        if (!isFile && state.scanAbort) {
+          state.scanAbort.abort();
+          state.scanInFlight = false;
+        }
+        refreshAddDuplicateCheck();
       });
     });
 
@@ -1505,33 +2252,31 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (state.scanInFlight) {
+        showAddError("Please wait for the PDF scan to finish before adding.");
+        return;
+      }
       showAddError("");
-      const data = new FormData(form);
-      const subjectId = String(data.get("subject") || "");
-      const subject = SUBJECT_BY_ID.get(subjectId);
-      const session = String(data.get("session") || "");
-      const paperNumber = Number(data.get("paperNumber"));
-      if (![1, 2].includes(paperNumber)) return showAddError("Choose Paper 1 or Paper 2.");
-      const year = parseInt(data.get("year"), 10);
-      const title = String(data.get("title") || "").trim().slice(0, 180);
-      const source = String(data.get("source") || "file");
-      const rawUrl = String(data.get("url") || "").trim();
+
+      const id = makeId();
+      const built = buildCandidateFromForm(form, id);
+      const { subject, source, rawUrl, candidate } = built;
 
       if (!subject) {
         showAddError("Choose a subject for this paper.");
         return;
       }
-      if (session !== "Summer" && session !== "Winter") {
+      if (candidate.attemptType !== "MODEL" && candidate.session !== "Summer" && candidate.session !== "Winter") {
         showAddError("Choose an exam session.");
         return;
       }
-      if (!Number.isFinite(year) || year < 1990 || year > CURRENT_YEAR + 1) {
+      if (candidate.attemptType !== "MODEL" && (!Number.isFinite(candidate.examYear) || candidate.examYear < 1990 || candidate.examYear > CURRENT_YEAR + 1)) {
         showAddError("Choose a valid exam year.");
         return;
       }
 
       let url = "";
-      let file = state.addFile;
+      let file = source === "file" ? state.addFile : null;
       if (source === "link") {
         url = safeUrl(rawUrl);
         if (!url) {
@@ -1544,24 +2289,12 @@
         return;
       }
 
-      const submit = document.getElementById("add-submit");
-      if (submit) {
-        submit.disabled = true;
-        submit.textContent = "Adding…";
-      }
+      const dup = refreshAddDuplicateCheck();
+      if (dup) return;
 
-      const id = makeId();
-      const meta = {
-        id: id,
-        subjectId: subjectId,
-        paperNumber,
-        session: session,
-        year: year,
-        title: title,
-        kind: file ? "file" : "link",
-        addedAt: new Date().toISOString(),
-        demo: false,
-      };
+      setAddSubmitState(true, "Adding…");
+
+      const meta = candidate;
       if (file) {
         meta.fileName = file.name;
         meta.fileType = fileTypeOf(file);
@@ -1584,16 +2317,15 @@
         showAddError(
           "Could not save this paper. Browser storage may be full or blocked — try a smaller file or a link instead."
         );
-        if (submit) {
-          submit.disabled = false;
-          submit.textContent = "Add paper";
-        }
+        setAddSubmitState(false, "Add paper");
         return;
       }
 
       state.papers.push(meta);
       state.addFile = null;
-      writeStorage(LAST_SUBJECT_KEY, subjectId);
+      state.scanResult = null;
+      state.curriculumBucket = meta.curriculumBucket || state.curriculumBucket;
+      writeStorage(LAST_SUBJECT_KEY, meta.subjectId);
       closeModal();
       render();
       toast("Added to " + subject.name);
@@ -1632,7 +2364,18 @@
             esc(src) +
             '" target="_blank" rel="noopener noreferrer">Open in a new tab</a> if nothing loads.</span></div>'
           : "";
-      const headMeta = [phase ? phase.label : "", subject ? subject.name : "", partLabel(paper), examLabel(paper)]
+      const headMeta = [
+        PROF_YEAR_BY_ID.get(paper.profYear)?.label || "",
+        subject ? subject.name : "",
+        partLabel(paper),
+        paper.isCompilation
+          ? "Compilation" + (paper.compilationSpan ? " (" + paper.compilationSpan + ")" : "")
+          : paper.attemptType === "MODEL"
+            ? "Model Paper · " + T.formatSchemeBadge(paper.curriculumScheme)
+            : T.formatCardMetaLine(paper),
+        paper.qpCode ? "QP " + paper.qpCode : "",
+        paper.examPhase ? "Phase " + (ROMAN_PHASES[paper.examPhase] || paper.examPhase) : "",
+      ]
         .filter(Boolean)
         .map(esc)
         .join(" · ");
@@ -1858,50 +2601,6 @@
     toast(wasMarked ? "Bookmark removed" : "Bookmarked");
   }
 
-  async function deletePaper(id) {
-    const paper = getPaper(id);
-    if (!paper) return;
-    let fileRecord = null;
-    try {
-      if (paper.kind === "file") fileRecord = await dbGet("files", id);
-    } catch (err) {
-      fileRecord = null;
-    }
-    try {
-      await dbDelete("papers", id);
-      if (paper.kind === "file") await dbDelete("files", id);
-    } catch (err) {
-      toast("Could not delete this paper. Try again.", { error: true });
-      return;
-    }
-    const wasBookmarked = state.bookmarks.delete(id);
-    if (wasBookmarked) persistBookmarks();
-    state.papers = state.papers.filter((p) => p.id !== id);
-    render();
-    toast("Paper removed", {
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          try {
-            await dbPut("papers", paper);
-            if (fileRecord && fileRecord.blob) {
-              await dbPut("files", { id: id, blob: fileRecord.blob });
-            }
-            state.papers.push(paper);
-            if (wasBookmarked) {
-              state.bookmarks.add(id);
-              persistBookmarks();
-            }
-            render();
-            toast("Paper restored");
-          } catch (err) {
-            toast("Could not restore that paper.", { error: true });
-          }
-        },
-      },
-    });
-  }
-
   async function downloadPaper(id) {
     const paper = getPaper(id);
     if (!paper) return;
@@ -1909,9 +2608,8 @@
     const fallbackName =
       slug(subject ? subject.name : "paper") +
       "-" +
-      (paper.session || "archive").toLowerCase() +
-      "-" +
-      paper.year +
+      (paper.session || "model").toLowerCase() +
+      (paper.year ? "-" + paper.year : "") +
       (paper.paperNumber ? "-paper-" + paper.paperNumber : "");
 
     if (paper.kind === "link" || paper.kind === "site") {
@@ -2056,15 +2754,15 @@
           continue;
         }
         const subject = SUBJECT_BY_ID.get(item.subjectId);
+        const isModelOrComp = item.attemptType === "MODEL" || item.isCompilation || Boolean(catalogueGroup(item));
         const session = item.session;
-        const group = catalogueGroup(item);
-        const year = group ? null : Math.trunc(Number(item.year));
+        const year = isModelOrComp && item.year == null ? null : Math.trunc(Number(item.year));
         if (
           !subject ||
-          (!group && ((session !== "Summer" && session !== "Winter") ||
+          (!isModelOrComp && ((session !== "Summer" && session !== "Winter") ||
           !Number.isFinite(year) ||
           year < 1990 ||
-          year > CURRENT_YEAR + 1)) || (group && (item.year != null || item.session != null || !siteUrl(item)))
+          year > CURRENT_YEAR + 1)) || (isModelOrComp && !siteUrl(item))
         ) {
           skipped += 1;
           continue;
@@ -2077,10 +2775,11 @@
           skipped += 1;
           continue;
         }
-        const meta = {
+        const meta = normalizePaper({
+          ...item,
           id: id,
           subjectId: subject.id,
-          paperNumber: [1,2].includes(Number(item.paperNumber)) ? Number(item.paperNumber) : null,
+          paperNumber: [1, 2].includes(Number(item.paperNumber)) ? Number(item.paperNumber) : null,
           session: session,
           year: year,
           title:
@@ -2090,7 +2789,11 @@
               ? item.addedAt
               : new Date().toISOString(),
           demo: Boolean(item.demo),
-        };
+        });
+        if (state.papers.some((p) => T.isSamePaperRecord(p, meta) && (p.paperSection || "COMBINED") === (meta.paperSection || "COMBINED"))) {
+          skipped += 1;
+          continue;
+        }
 
         let blob = null;
         if (typeof item.fileData === "string" && item.fileData) {
@@ -2118,7 +2821,7 @@
         } else if (item.kind === "site" && siteUrl(item)) {
           Object.assign(meta, {kind: "site", url: item.url, fileType: "application/pdf",
             fileName: item.url.split("/").pop(), fileSize: Number(item.fileSize) || 0});
-          if (group) meta.catalogueGroup = group;
+          Object.assign(meta, normalizePaper(meta));
         } else if (typeof item.url === "string" && safeUrl(item.url)) {
           meta.kind = "link";
           meta.url = safeUrl(item.url);
@@ -2184,7 +2887,7 @@
   }
 
   function clearFilters() {
-    state.filters = { session: "all", year: "all", part: "all" };
+    state.filters = { part: "all", session: "all", attempt: "all", scheme: "all", year: "all" };
     state.query = "";
     const input = document.getElementById("search-input");
     if (input) input.value = "";
@@ -2219,8 +2922,14 @@
       case "open-add":
         openAddModal(element.dataset.subject || null);
         break;
-      case "phase":
-        state.phase = element.dataset.phase || "all";
+      case "prof-year":
+        state.profYear = element.dataset.profYear || "all";
+        render();
+        break;
+      case "bucket":
+        state.curriculumBucket = element.dataset.bucket === "OLD" ? "OLD" : "CBME";
+        state.filters.scheme = "all";
+        state.filters.year = "all";
         render();
         break;
       case "bookmark":
@@ -2228,9 +2937,6 @@
         break;
       case "preview":
         openPreview(id);
-        break;
-      case "delete":
-        deletePaper(id);
         break;
       case "download":
         downloadPaper(id);
@@ -2263,6 +2969,19 @@
         break;
       case "clear-file":
         clearAddFile();
+        break;
+      case "open-chai":
+        openChaiModal();
+        break;
+      case "chai-done":
+        writeStorage(CHAI_DISMISS_KEY, "1");
+        closeModal(true);
+        toast("Thank you for supporting MUHS Papers!");
+        break;
+      case "copy-upi":
+        if (CHAI_CONFIG.upiId && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(CHAI_CONFIG.upiId).then(() => toast("Copied UPI ID"));
+        }
         break;
       default:
         break;
@@ -2354,6 +3073,12 @@
       } else if (target.id === "filter-session") {
         state.filters.session = target.value;
         render();
+      } else if (target.id === "filter-attempt") {
+        state.filters.attempt = target.value;
+        render();
+      } else if (target.id === "filter-scheme") {
+        state.filters.scheme = target.value;
+        render();
       } else if (target.id === "filter-year") {
         state.filters.year = target.value;
         render();
@@ -2395,7 +3120,7 @@
       const next = parseRoute();
       if (routeKey(next) === routeKey(state.route)) return;
       state.route = next;
-      state.filters = { session: "all", year: "all", part: "all" };
+      state.filters = { part: "all", session: "all", attempt: "all", scheme: "all", year: "all" };
       state.query = "";
       if (searchInput) searchInput.value = "";
       render({ animate: true });
@@ -2405,29 +3130,53 @@
 
   /* ---------- Boot ------------------------------------------------------ */
   function validPaper(paper) {
+    if (!paper || typeof paper !== "object" || typeof paper.id !== "string" || !SUBJECT_BY_ID.has(paper.subjectId)) {
+      return false;
+    }
+    const isModelOrComp = paper.attemptType === "MODEL" || paper.isCompilation || Boolean(catalogueGroup(paper));
+    if (isModelOrComp && siteUrl(paper)) return true;
     return (
-      paper &&
-      typeof paper === "object" &&
-      typeof paper.id === "string" &&
-      SUBJECT_BY_ID.has(paper.subjectId) &&
-      ((catalogueGroup(paper) && paper.session == null && paper.year == null && siteUrl(paper)) ||
-        ((paper.session === "Summer" || paper.session === "Winter") && Number.isFinite(Number(paper.year))))
+      (paper.session === "Summer" || paper.session === "Winter") &&
+      Number.isFinite(Number(paper.year))
     );
   }
 
-  async function seedDefaultPapers() {
+  async function seedDefaultPapers(rawById) {
     await seedOriginalLibrary();
-    const key = "muhs.hosted.v1";
+    const replaced = DATA.replacedPaperIds || {};
+    let bookmarkMigrated = false;
+    for (const [oldId, newId] of Object.entries(replaced)) {
+      if (state.bookmarks.has(oldId)) {
+        state.bookmarks.delete(oldId);
+        state.bookmarks.add(newId);
+        bookmarkMigrated = true;
+      }
+      const oldRec = getPaper(oldId) || (rawById && rawById.get(oldId));
+      if (oldRec) {
+        await dbDelete("papers", oldId);
+        state.papers = state.papers.filter((p) => p.id !== oldId);
+      }
+    }
+    if (bookmarkMigrated) persistBookmarks();
+
+    const prevSeen = new Set([
+      ...readArray("muhs.hosted.v1"),
+      ...readArray("muhs.hosted.v2"),
+      ...readArray("muhs.hosted.v3"),
+    ]);
+    const key = "muhs.hosted.v4";
     const seen = new Set(readArray(key));
     for (const item of DATA.hostedPapers || []) {
       if (seen.has(item.id) || !validPaper(item) || !siteUrl(item)) continue;
-      const previous = getPaper(item.id);
-      const original = DATA.defaultPapers.find(p => p.id === item.id);
-      // A missing previously seeded Drive record may have been deliberately deleted.
-      if ((!previous && !original) || (previous?.kind === "link" && previous.url === original?.url)) {
-        const copy = { ...item, paperNumber: previous ? previous.paperNumber : item.paperNumber };
+      const previous = getPaper(item.id) || (rawById && rawById.get(item.id));
+      const original = DATA.defaultPapers.find((p) => p.id === item.id);
+      const wasDeliberatelyDeleted = !previous && (prevSeen.has(item.id) || Boolean(original));
+      const shouldUpgrade = Boolean(previous && (previous.kind === "site" || (previous.kind === "link" && original && previous.url === original.url)));
+      if (shouldUpgrade || !wasDeliberatelyDeleted) {
+        const copy = normalizePaper({ ...item });
         await dbPut("papers", copy);
-        if (previous) Object.assign(previous, copy);
+        const existingInState = getPaper(item.id);
+        if (existingInState) Object.assign(existingInState, copy);
         else state.papers.push(copy);
       }
       seen.add(item.id);
@@ -2438,10 +3187,11 @@
   async function seedOriginalLibrary() {
     const defaults = Array.isArray(DATA.defaultPapers) ? DATA.defaultPapers : [];
     if (!defaults.length || readString(SEEDED_KEY) === "1") return;
+    const replaced = DATA.replacedPaperIds || {};
     const existing = new Set(state.papers.map((p) => p.id));
     for (const item of defaults) {
-      if (!validPaper(item) || existing.has(item.id)) continue;
-      const copy = { ...item, year: Number(item.year) };
+      if (replaced[item.id] || !validPaper(item) || existing.has(item.id)) continue;
+      const copy = normalizePaper({ ...item, year: Number(item.year) });
       await dbPut("papers", copy);
       state.papers.push(copy);
       existing.add(copy.id);
@@ -2453,27 +3203,30 @@
     initTheme();
     state.route = parseRoute();
     bindEvents();
+    if (window.MUHS_SUBJECT_CODES && window.MUHS_SUBJECT_CODES.load) {
+      await window.MUHS_SUBJECT_CODES.load("./muhs-subject-codes.json");
+    }
     try {
       const papers = await dbGetAll("papers");
-      state.papers = papers.filter(validPaper).map((paper) => ({
-        ...paper,
-        year: paper.year == null ? null : Number(paper.year),
-      }));
-      await seedDefaultPapers();
+      const rawById = new Map(papers.map((p) => [p.id, p]));
+      state.papers = papers.filter(validPaper).map(normalizePaper);
+      await seedDefaultPapers(rawById);
     } catch (err) {
       state.storageOk = false;
       console.warn("MUHS Papers: browser storage unavailable", err);
       if (Array.isArray(DATA.defaultPapers)) {
-        const catalogue = new Map([...DATA.defaultPapers, ...(DATA.hostedPapers || [])].map(p => [p.id, p]));
-        state.papers = [...catalogue.values()].filter(validPaper).map((paper) => ({
-          ...paper,
-          year: paper.year == null ? null : Number(paper.year),
-        }));
+        const replaced = DATA.replacedPaperIds || {};
+        const catalogue = new Map();
+        for (const p of [...DATA.defaultPapers, ...(DATA.hostedPapers || [])]) {
+          if (!replaced[p.id]) catalogue.set(p.id, p);
+        }
+        state.papers = [...catalogue.values()].filter(validPaper).map(normalizePaper);
       }
     }
     state.loading = false;
     pruneBookmarks();
     render();
+    scheduleChaiPopup();
     if (
       "serviceWorker" in navigator &&
       (location.protocol === "https:" ||

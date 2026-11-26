@@ -1,0 +1,89 @@
+{
+  "version": "2026.11",
+  "university": "MUHS Nashik",
+  "course": "MBBS",
+  "notes": [
+    "C1101A-C1103B are CBME-2023 and Summer 2026 Phase-III unified First MBBS codes; C1111A-C1113B are CBME-2024 and Summer 2026 Phase-IV unified First MBBS codes.",
+    "Third (I) and Third (II) MBBS continue using AAB010002724... ERP codes across CBME-2019, CBME-2021, CBME-2023, and 2026 timetables.",
+    "AAB0100027243202 (Ophthalmology) and AAB0100027243203 (Otorhinolaryngology) appear in THIRD_PART_1 for CBME_2019 and THIRD_PART_2 for CBME_2021_SPLIT/CBME_2023; resolve final profYear using header Part-I/Part-II text.",
+    "Third (II) MBBS ERP codes encode Paper I and Paper II as consecutive numbers (4201/4202, 4203/4204, 4206/4207) rather than -P1/-P2 suffixes."
+  ],
+  "codes": {
+    "01101A": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01101B": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01102A": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01102B": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01103A": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01103B": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+
+    "01111A": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 1, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "01111B": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 2, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "01112A": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 1, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "01112B": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 2, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "01113A": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 1, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "01113B": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 2, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+
+    "C1101A": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 1, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1101B": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 2, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1102A": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 1, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1102B": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 2, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1103A": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 1, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1103B": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 2, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+
+    "C1111A": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 1, "curriculumSchemes": ["CBME_2024", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1111B": { "profYears": ["FIRST"], "subject": "Anatomy", "paperNumber": 2, "curriculumSchemes": ["CBME_2024", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1112A": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 1, "curriculumSchemes": ["CBME_2024", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1112B": { "profYears": ["FIRST"], "subject": "Physiology", "paperNumber": 2, "curriculumSchemes": ["CBME_2024", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1113A": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 1, "curriculumSchemes": ["CBME_2024", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1113B": { "profYears": ["FIRST"], "subject": "Biochemistry", "paperNumber": 2, "curriculumSchemes": ["CBME_2024", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+
+    "01201A": { "profYears": ["SECOND"], "subject": "Pharmacology", "aliases": ["Pharmacology & Therapeutics"], "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01201B": { "profYears": ["SECOND"], "subject": "Pharmacology", "aliases": ["Pharmacology & Therapeutics"], "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01202A": { "profYears": ["SECOND"], "subject": "Pathology", "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01202B": { "profYears": ["SECOND"], "subject": "Pathology", "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01203A": { "profYears": ["SECOND"], "subject": "Microbiology", "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01203B": { "profYears": ["SECOND"], "subject": "Microbiology", "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01204": { "profYears": ["SECOND"], "subject": "Forensic Medicine & Toxicology", "aliases": ["FMT"], "paperNumber": null, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+
+    "AAB0100022201-P1": { "profYears": ["SECOND"], "subject": "Pharmacology", "paperNumber": 1, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100022201-P2": { "profYears": ["SECOND"], "subject": "Pharmacology", "paperNumber": 2, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100022202-P1": { "profYears": ["SECOND"], "subject": "Pathology", "paperNumber": 1, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100022202-P2": { "profYears": ["SECOND"], "subject": "Pathology", "paperNumber": 2, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100022203-P1": { "profYears": ["SECOND"], "subject": "Microbiology", "paperNumber": 1, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100022203-P2": { "profYears": ["SECOND"], "subject": "Microbiology", "paperNumber": 2, "curriculumSchemes": ["CBME_2019"], "curriculumBucket": "CBME", "verified": true },
+
+    "C1201A": { "profYears": ["SECOND"], "subject": "Pharmacology", "paperNumber": 1, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1201B": { "profYears": ["SECOND"], "subject": "Pharmacology", "paperNumber": 2, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1202A": { "profYears": ["SECOND"], "subject": "Pathology", "paperNumber": 1, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1202B": { "profYears": ["SECOND"], "subject": "Pathology", "paperNumber": 2, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "C1203A": { "profYears": ["SECOND"], "subject": "Microbiology", "paperNumber": 1, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": "inferred_from_series" },
+    "C1203B": { "profYears": ["SECOND"], "subject": "Microbiology", "paperNumber": 2, "curriculumSchemes": ["CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": "inferred_from_series" },
+
+    "01301A": { "profYears": ["THIRD_PART_1"], "subject": "Community Medicine", "aliases": ["PSM"], "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01301B": { "profYears": ["THIRD_PART_1"], "subject": "Community Medicine", "aliases": ["PSM"], "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01302": { "profYears": ["THIRD_PART_1"], "subject": "Otorhinolaryngology", "aliases": ["E.N.T.", "ENT"], "paperNumber": null, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01303": { "profYears": ["THIRD_PART_1"], "subject": "Ophthalmology", "paperNumber": null, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+
+    "AAB0100027243201-P1": { "profYears": ["THIRD_PART_1"], "subject": "Community Medicine", "aliases": ["PSM"], "paperNumber": 1, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027243201-P2": { "profYears": ["THIRD_PART_1"], "subject": "Community Medicine", "aliases": ["PSM"], "paperNumber": 2, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027243202": { "profYears": ["THIRD_PART_1", "THIRD_PART_2"], "subject": "Ophthalmology", "paperNumber": null, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "requiresHeaderDisambiguation": true, "verified": true },
+    "AAB0100027243203": { "profYears": ["THIRD_PART_1", "THIRD_PART_2"], "subject": "Otorhinolaryngology", "aliases": ["E.N.T.", "ENT"], "paperNumber": null, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "requiresHeaderDisambiguation": true, "verified": true },
+    "AAB0100027243204": { "profYears": ["THIRD_PART_1"], "subject": "Forensic Medicine & Toxicology", "aliases": ["FMT"], "paperNumber": null, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+
+    "01304A": { "profYears": ["THIRD_PART_2"], "subject": "General Medicine", "aliases": ["Medicine & Allied Subjects"], "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01304B": { "profYears": ["THIRD_PART_2"], "subject": "General Medicine", "aliases": ["Medicine & Allied Subjects"], "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01305A": { "profYears": ["THIRD_PART_2"], "subject": "General Surgery", "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01305B": { "profYears": ["THIRD_PART_2"], "subject": "General Surgery", "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01306A": { "profYears": ["THIRD_PART_2"], "subject": "Obstetrics & Gynaecology", "aliases": ["OBGYN"], "paperNumber": 1, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01306B": { "profYears": ["THIRD_PART_2"], "subject": "Obstetrics & Gynaecology", "aliases": ["OBGYN"], "paperNumber": 2, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+    "01307": { "profYears": ["THIRD_PART_2"], "subject": "Paediatrics", "aliases": ["Pediatrics"], "paperNumber": null, "curriculumSchemes": ["OLD"], "curriculumBucket": "OLD", "verified": true },
+
+    "AAB0100027244201": { "profYears": ["THIRD_PART_2"], "subject": "Obstetrics & Gynaecology", "aliases": ["OBGYN"], "paperNumber": 1, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027244202": { "profYears": ["THIRD_PART_2"], "subject": "Obstetrics & Gynaecology", "aliases": ["OBGYN"], "paperNumber": 2, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027244203": { "profYears": ["THIRD_PART_2"], "subject": "General Medicine", "paperNumber": 1, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027244204": { "profYears": ["THIRD_PART_2"], "subject": "General Medicine", "paperNumber": 2, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027244205": { "profYears": ["THIRD_PART_2"], "subject": "Paediatrics", "aliases": ["Pediatrics"], "paperNumber": null, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027244206": { "profYears": ["THIRD_PART_2"], "subject": "General Surgery", "paperNumber": 1, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true },
+    "AAB0100027244207": { "profYears": ["THIRD_PART_2"], "subject": "General Surgery", "paperNumber": 2, "curriculumSchemes": ["CBME_2019", "CBME_2021_SPLIT", "CBME_2023", "CBME_UNIFIED_2026"], "curriculumBucket": "CBME", "verified": true }
+  }
+}

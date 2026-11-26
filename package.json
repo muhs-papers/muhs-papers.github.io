@@ -5,6 +5,7 @@
   "description": "A local-first library of MUHS MBBS previous year question papers.",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test test/*.test.js",
     "build:web": "node scripts/prepare-www.js",
     "cap:sync": "node scripts/prepare-www.js && npx cap sync android"
   },
@@ -14,6 +15,8 @@
     "@capacitor/core": "^8.6.2"
   },
   "devDependencies": {
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.5.438",
+    "tesseract.js": "^7.0.0"
   }
 }

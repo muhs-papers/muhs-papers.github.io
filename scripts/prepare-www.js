@@ -9,12 +9,17 @@ const FILES = [
   "styles.css",
   "data.js",
   "hosted-papers.js",
+  "muhs-subject-codes.json",
+  "subject-codes.js",
+  "taxonomy.js",
+  "pdf-scanner.js",
   "app.js",
   "manifest.json",
   "icon.svg",
   "icon-192.png",
   "icon-512.png",
   "subject-icons.svg",
+  "upi-qr.jpg",
   "sw.js",
 ];
 
@@ -26,4 +31,5 @@ for (const file of FILES) {
 }
 
 fs.cpSync(path.join(ROOT, "fonts"), path.join(WWW, "fonts"), { recursive: true });
-console.log("Prepared www/ with", FILES.length, "files + fonts/");
+fs.cpSync(path.join(ROOT, "vendor"), path.join(WWW, "vendor"), { recursive: true });
+console.log("Prepared www/ with", FILES.length, "files + fonts/ + vendor/");
