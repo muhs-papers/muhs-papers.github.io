@@ -1335,12 +1335,7 @@ svg {
 }
 
 .select .icon {
-  position: absolute;
-  right: 9px;
-  width: 14px;
-  height: 14px;
-  color: var(--ink-3);
-  pointer-events: none;
+  display: none;
 }
 
 .filters .results-count {
@@ -3014,18 +3009,18 @@ body, [data-theme="dark"] body {
   gap: 7px;
   flex-shrink: 0;
 }
-.topbar-install,
-.topbar-apk {
+.topbar .topbar-install,
+.topbar .topbar-apk {
   height: 36px;
   background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.3);
   color: #ffffff;
   white-space: nowrap;
 }
-.topbar-install:hover,
-.topbar-apk:hover {
+.topbar .topbar-install:hover,
+.topbar .topbar-apk:hover {
   background: rgba(255, 255, 255, 0.24);
-  border-color: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.48);
   color: #ffffff;
 }
 @media (min-width: 901px) {
