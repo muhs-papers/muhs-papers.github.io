@@ -959,6 +959,28 @@ svg {
   font-variant-numeric: tabular-nums;
 }
 
+.phase-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.phase-bhalani-btn,
+.phase-bhalani-dl {
+  border-color: var(--phase-line);
+  background: var(--surface);
+  color: var(--phase-ink);
+  font-weight: 600;
+}
+
+.phase-bhalani-btn:hover,
+.phase-bhalani-dl:hover {
+  background: var(--phase-soft);
+  border-color: var(--phase-ink);
+  color: var(--phase-ink);
+}
+
 .subject-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(252px, 1fr));

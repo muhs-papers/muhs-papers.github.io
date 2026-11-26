@@ -10,6 +10,13 @@ window.MUHS_DATA = {
       name: "1st Professional",
       tag: "Pre-clinical",
       desc: "Anatomy, physiology and biochemistry — the foundations of medicine.",
+      bhalani: {
+        title: "First MBBS — Bhalani Question Bank",
+        fileName: "first-mbbs-bhalani.pdf",
+        url: "papers/bhalani/first-mbbs-bhalani.pdf",
+        fileSize: 1843632,
+        pages: 18,
+      },
     },
     {
       id: "SECOND",
@@ -18,6 +25,13 @@ window.MUHS_DATA = {
       name: "2nd Professional",
       tag: "Para-clinical",
       desc: "Pathology, pharmacology, microbiology and forensic medicine (OLD scheme).",
+      bhalani: {
+        title: "Second MBBS — Bhalani Question Bank",
+        fileName: "second-mbbs-bhalani.pdf",
+        url: "papers/bhalani/second-mbbs-bhalani.pdf",
+        fileSize: 3411648,
+        pages: 58,
+      },
     },
     {
       id: "THIRD_PART_1",
@@ -26,6 +40,13 @@ window.MUHS_DATA = {
       name: "3rd Professional · Pt I",
       tag: "Clinical & community",
       desc: "Community medicine, forensic medicine (CBME), plus ENT & ophthalmology (OLD / CBME 2019).",
+      bhalani: {
+        title: "Third MBBS Part I — Bhalani Question Bank",
+        fileName: "third-mbbs-part-1-bhalani.pdf",
+        url: "papers/bhalani/third-mbbs-part-1-bhalani.pdf",
+        fileSize: 9923782,
+        pages: 44,
+      },
     },
     {
       id: "THIRD_PART_2",
@@ -34,6 +55,13 @@ window.MUHS_DATA = {
       name: "Final Professional",
       tag: "Final clinical",
       desc: "Medicine, surgery, paediatrics, OBGYN & allied specialties (plus ENT & ophthalmology under CBME 2021+).",
+      bhalani: {
+        title: "Final MBBS Part II — Bhalani Question Bank",
+        fileName: "final-mbbs-part-2-bhalani.pdf",
+        url: "papers/bhalani/final-mbbs-part-2-bhalani.pdf",
+        fileSize: 817042,
+        pages: 83,
+      },
     },
   ],
 

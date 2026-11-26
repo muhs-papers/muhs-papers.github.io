@@ -973,6 +973,28 @@
     yearsToShow.forEach((py) => {
       const subjects = SUBJECTS.filter((s) => subjectProfYearForBucket(s, activeBucket) === py.id);
       if (!subjects.length) return;
+      const bhalaniActions = py.bhalani
+        ? '<div class="phase-actions">' +
+          '<button class="btn btn-ghost btn-sm phase-bhalani-btn" type="button" data-action="view-bhalani" data-prof-year="' +
+          esc(py.id) +
+          '" aria-label="View ' +
+          esc(py.bhalani.title) +
+          '">' +
+          icon("file") +
+          "<span>Bhalani PDF</span></button>" +
+          '<a class="btn btn-ghost btn-sm phase-bhalani-dl" href="' +
+          esc(py.bhalani.url) +
+          '" download="' +
+          esc(py.bhalani.fileName) +
+          '" aria-label="Download ' +
+          esc(py.bhalani.title) +
+          '" title="Download ' +
+          esc(py.bhalani.title) +
+          '">' +
+          icon("download") +
+          "<span>Download</span></a>" +
+          "</div>"
+        : "";
       parts.push(
         '<section class="phase-section phase-' +
           esc(py.legacyPhase) +
@@ -987,7 +1009,9 @@
           plural(subjects.length, "subject", "subjects") +
           " · " +
           plural(profYearPaperCount(py.id, activeBucket), "paper", "papers") +
-          "</span></div>" +
+          "</span>" +
+          bhalaniActions +
+          "</div>" +
           subjectGrid(subjects, activeBucket) +
           "</section>"
       );
@@ -2457,6 +2481,69 @@
     }
   }
 
+  function openBhalaniPreview(profYearId) {
+    const py = PROF_YEAR_BY_ID.get(profYearId);
+    const bhalani = py && py.bhalani;
+    if (!bhalani || !bhalani.url) {
+      toast("Bhalani PDF is not available for this year.", { error: true });
+      return;
+    }
+    const src = bhalani.url;
+    const frameSrc = src + "#view=FitH";
+    const headMeta = [
+      py.label,
+      py.name,
+      bhalani.pages ? bhalani.pages + " pages" : "",
+      bhalani.fileSize ? "PDF · " + formatSize(bhalani.fileSize) : "",
+    ]
+      .filter(Boolean)
+      .map(esc)
+      .join(" · ");
+
+    const html =
+      '<div class="modal-backdrop" data-close-modal><div class="modal preview" role="dialog" aria-modal="true" aria-label="' +
+      esc(bhalani.title) +
+      '">' +
+      '<div class="preview-head"><div class="preview-head-main"><h2>' +
+      esc(bhalani.title) +
+      '</h2><p id="preview-meta">' +
+      headMeta +
+      '</p></div><div class="actions">' +
+      '<a class="btn btn-ghost btn-sm" href="' +
+      esc(src) +
+      '" target="_blank" rel="noopener noreferrer" aria-label="Open PDF in a new tab" title="Open PDF in a new tab">' +
+      icon("external") +
+      '<span>Open</span></a>' +
+      '<button class="icon-btn modal-close" type="button" data-close-modal aria-label="Close preview">' +
+      icon("close") +
+      "</button></div></div>" +
+      '<div class="preview-body">' +
+      '<iframe src="' +
+      esc(frameSrc) +
+      '" title="' +
+      esc(bhalani.title) +
+      '" allowfullscreen></iframe>' +
+      "</div>" +
+      '<div class="preview-foot"><span>' +
+      esc(bhalani.fileName) +
+      '</span><div class="foot-actions">' +
+      '<a class="btn btn-ghost btn-sm" href="' +
+      esc(src) +
+      '" download="' +
+      esc(bhalani.fileName) +
+      '">' +
+      icon("download") +
+      " Download</a>" +
+      '<a class="btn btn-primary btn-sm" href="' +
+      esc(src) +
+      '" target="_blank" rel="noopener noreferrer">' +
+      icon("external") +
+      " Open in new tab</a></div></div>" +
+      "</div></div>";
+
+    openModal(html);
+  }
+
   /* ---------- Demo library ---------------------------------------------- */
   function buildDemoEntries() {
     const y1 = CURRENT_YEAR - 1;
@@ -2937,6 +3024,9 @@
         break;
       case "preview":
         openPreview(id);
+        break;
+      case "view-bhalani":
+        openBhalaniPreview(element.dataset.profYear || "");
         break;
       case "download":
         downloadPaper(id);
