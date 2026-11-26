@@ -966,16 +966,14 @@ svg {
   flex-wrap: wrap;
 }
 
-.phase-bhalani-btn,
-.phase-bhalani-dl {
+.phase-bhalani-btn {
   border-color: var(--phase-line);
   background: var(--surface);
   color: var(--phase-ink);
   font-weight: 600;
 }
 
-.phase-bhalani-btn:hover,
-.phase-bhalani-dl:hover {
+.phase-bhalani-btn:hover {
   background: var(--phase-soft);
   border-color: var(--phase-ink);
   color: var(--phase-ink);

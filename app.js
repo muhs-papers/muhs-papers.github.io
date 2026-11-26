@@ -977,22 +977,13 @@
         ? '<div class="phase-actions">' +
           '<button class="btn btn-ghost btn-sm phase-bhalani-btn" type="button" data-action="view-bhalani" data-prof-year="' +
           esc(py.id) +
-          '" aria-label="View ' +
+          '" aria-label="View and download ' +
+          esc(py.bhalani.title) +
+          '" title="View & download ' +
           esc(py.bhalani.title) +
           '">' +
           icon("file") +
           "<span>Bhalani PDF</span></button>" +
-          '<a class="btn btn-ghost btn-sm phase-bhalani-dl" href="' +
-          esc(py.bhalani.url) +
-          '" download="' +
-          esc(py.bhalani.fileName) +
-          '" aria-label="Download ' +
-          esc(py.bhalani.title) +
-          '" title="Download ' +
-          esc(py.bhalani.title) +
-          '">' +
-          icon("download") +
-          "<span>Download</span></a>" +
           "</div>"
         : "";
       parts.push(
